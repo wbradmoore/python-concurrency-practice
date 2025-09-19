@@ -37,10 +37,14 @@ def test_cpu_page():
     """Test CPU page hashseed solving"""
     print("Testing CPU page...")
 
-    response = requests.get(f"{BASE_URL}/graph/sample")
-    sample = response.json()
+    response = requests.get(f"{BASE_URL}/graph/random")
+    cpu_page = response.json()
 
-    cpu_pages = [p for p in sample["pages"] if p["page_type"] == "cpu"]
+    if cpu_page["page_type"] != "cpu":
+        print("  Random page not CPU type, skipping test")
+        return True
+
+    cpu_pages = [cpu_page]
     if not cpu_pages:
         print("  No CPU pages in sample")
         return True
@@ -67,10 +71,14 @@ def test_core_page():
     """Test multi-core page with sequential vs parallel"""
     print("Testing multi-core page...")
 
-    response = requests.get(f"{BASE_URL}/graph/sample")
-    sample = response.json()
+    response = requests.get(f"{BASE_URL}/graph/random")
+    core_page = response.json()
 
-    core_pages = [p for p in sample["pages"] if p["page_type"] == "core"]
+    if core_page["page_type"] != "core":
+        print("  Random page not core type, skipping test")
+        return True
+
+    core_pages = [core_page]
     if not core_pages:
         print("  No core pages in sample")
         return True

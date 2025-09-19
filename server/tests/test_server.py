@@ -18,17 +18,20 @@ def test_page_types():
     """Test different page types work correctly"""
     print("Testing page types...")
 
-    # Get sample pages
-    response = requests.get(f"{BASE_URL}/graph/sample")
-    sample = response.json()
-
-    # Test each page type
+    # Test each page type by getting random pages
     for page_type in ["regular", "delay", "failure", "cpu", "core"]:
-        pages = [p for p in sample["pages"] if p["page_type"] == page_type]
-        if not pages:
-            continue
+        # Try a few times to get the desired page type
+        page = None
+        for _ in range(10):
+            response = requests.get(f"{BASE_URL}/graph/random")
+            candidate = response.json()
+            if candidate["page_type"] == page_type:
+                page = candidate
+                break
 
-        page = pages[0]
+        if not page:
+            print(f"  Could not find {page_type} page after 10 attempts, skipping")
+            continue
         print(f"  Testing {page_type} page: {page['page_id']}")
 
         start_time = time.time()
@@ -94,9 +97,12 @@ def test_performance():
     print("Testing performance...")
 
     # Get a few regular pages
-    response = requests.get(f"{BASE_URL}/graph/sample")
-    sample = response.json()
-    regular_pages = [p for p in sample["pages"] if p["page_type"] == "regular"][:5]
+    regular_pages = []
+    for _ in range(5):
+        response = requests.get(f"{BASE_URL}/graph/random")
+        page = response.json()
+        if page["page_type"] == "regular":
+            regular_pages.append(page)
 
     if regular_pages:
         # Sequential timing

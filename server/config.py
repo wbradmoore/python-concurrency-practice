@@ -10,8 +10,7 @@ and performance characteristics.
 # Graph Structure
 TOTAL_PAGES = 1000              # Total number of pages in the graph
 PAGE_ID_LENGTH = 4              # Length of each page ID (e.g., "a1b2")
-ADDITIONAL_EDGES = 2000         # Random edges added after tree construction
-                               # This creates cycles and increases connectivity
+AVG_LINKS_PER_PAGE = 3          # Average number of outbound links per page
 
 # Page Types and Distribution
 DELAY_PAGE_PROBABILITY = 0.1    # Probability that a page is a delay page (10%)
@@ -38,8 +37,6 @@ CPU_PAGE_ITERATIONS = 50000000  # Number of hash iterations for CPU work (~5 sec
 CORE_PAGE_ITERATIONS_PER_CHAR = 12500000  # Hash iterations per character (4 chars × 12.5M = 50M total)
 CORE_PAGE_CHARS = 4             # Number of characters to compute in parallel
 
-# Test Configuration
-MAX_SAMPLE_SIZE = 20            # Maximum sample size for /graph/sample endpoint
 
 # Server Configuration
 SERVER_HOST = '0.0.0.0'         # Server bind address
