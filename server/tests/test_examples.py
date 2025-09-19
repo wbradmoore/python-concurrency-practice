@@ -38,13 +38,13 @@ def test_cpu_page():
     print("Testing CPU page...")
 
     response = requests.get(f"{BASE_URL}/graph/random")
-    cpu_page = response.json()
+    cpu_data = response.json()
 
-    if cpu_page["page_type"] != "cpu":
+    if cpu_data["page_type"] != "cpu":
         print("  Random page not CPU type, skipping test")
         return True
 
-    cpu_pages = [cpu_page]
+    cpu_pages = [{"page_id": cpu_data["page_id"]}]
     if not cpu_pages:
         print("  No CPU pages in sample")
         return True
@@ -72,13 +72,13 @@ def test_core_page():
     print("Testing multi-core page...")
 
     response = requests.get(f"{BASE_URL}/graph/random")
-    core_page = response.json()
+    core_data = response.json()
 
-    if core_page["page_type"] != "core":
+    if core_data["page_type"] != "core":
         print("  Random page not core type, skipping test")
         return True
 
-    core_pages = [core_page]
+    core_pages = [{"page_id": core_data["page_id"]}]
     if not core_pages:
         print("  No core pages in sample")
         return True
