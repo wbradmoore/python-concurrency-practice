@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-from flask import Flask, jsonify, abort
 import random
 import string
 import time
+
 from config import *
+from flask import Flask, abort, jsonify
 
 # Validate configuration on startup
 validate_config()
@@ -116,11 +117,13 @@ def build_graph():
         pages_in_tree.append(new_page)
 
     # Now we have a tree with (TOTAL_PAGES - 1) edges
-    # Add configurable number of random edges to create cycles and increase connectivity
+    # Add more edges to reach target average links per page
+    target_total_edges = TOTAL_PAGES * AVG_LINKS_PER_PAGE
+    additional_edges_needed = target_total_edges - (TOTAL_PAGES - 1)
     edges_added = 0
     attempts = 0
 
-    while edges_added < ADDITIONAL_EDGES and attempts < MAX_ATTEMPTS_EDGE_GENERATION:
+    while edges_added < additional_edges_needed and attempts < MAX_ATTEMPTS_EDGE_GENERATION:
         attempts += 1
         source_page = random.choice(PAGES)
         target_page = choose_target_page()  # Random selection from all page types
@@ -255,32 +258,13 @@ def serve_page(page_id):
 
 @app.route('/graph/random')
 def random_page():
-    """Get a random page ID to start crawling from"""
+    """Get a random page ID to start crawling from (may not reach all pages)"""
     page = random.choice(PAGES)
     return jsonify({
         "page_id": page["page_id"],
         "page_type": page["type"],
         "url": page["url"],
-        "message": "Use this as a starting point for crawling"
-    })
-
-@app.route('/graph/sample')
-def sample_pages():
-    """Get a sample of pages for testing"""
-    sample_size = min(MAX_SAMPLE_SIZE, len(PAGES))
-    sample = random.sample(PAGES, sample_size)
-
-    return jsonify({
-        "sample_size": sample_size,
-        "pages": [
-            {
-                "page_id": page["page_id"],
-                "page_type": page["type"],
-                "url": page["url"]
-            }
-            for page in sample
-        ],
-        "message": "Sample pages for testing different concurrency approaches"
+        "message": "Random page - may not lead to all other pages"
     })
 
 
