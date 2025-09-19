@@ -4,7 +4,6 @@ from flask import Flask, jsonify, abort
 import random
 import string
 import time
-from abc import ABC, abstractmethod
 from config import *
 
 # Validate configuration on startup
@@ -12,48 +11,14 @@ validate_config()
 
 app = Flask(__name__)
 
-# Page Type System
-class PageType(ABC):
-    """Abstract base class for different page types"""
-
-    @abstractmethod
-    def get_url_path(self, page_id):
-        """Return the URL path for this page type"""
-        pass
-
-    @abstractmethod
-    def get_delay(self):
-        """Return the delay in seconds for this page type"""
-        pass
-
-    @abstractmethod
-    def get_type_name(self):
-        """Return a human-readable name for this page type"""
-        pass
-
-class RegularPageType(PageType):
-    """Regular pages with configurable delay"""
-
-    def get_url_path(self, page_id):
-        return REGULAR_PAGE_PATH_TEMPLATE.format(page_id=page_id)
-
-    def get_delay(self):
-        return REGULAR_PAGE_DELAY
-
-    def get_type_name(self):
-        return "regular"
-
-class DelayPageType(PageType):
-    """High-delay pages with configurable delay"""
-
-    def get_url_path(self, page_id):
-        return DELAY_PAGE_PATH_TEMPLATE.format(page_id=page_id)
-
-    def get_delay(self):
-        return DELAY_PAGE_DELAY
-
-    def get_type_name(self):
-        return "delay"
+# Page Type Configuration
+PAGE_TYPES = {
+    "regular": {"delay": REGULAR_PAGE_DELAY},
+    "delay": {"delay": DELAY_PAGE_DELAY},
+    "failure": {"delay": FAILURE_PAGE_DELAY},
+    "cpu": {"delay": CPU_PAGE_DELAY},
+    "core": {"delay": CORE_PAGE_DELAY}
+}
 
 # Generate unique page IDs with configurable length
 def generate_page_ids(count=TOTAL_PAGES):
@@ -68,22 +33,31 @@ def generate_page_ids(count=TOTAL_PAGES):
     return list(page_ids)
 
 def assign_page_types(page_ids):
-    """Assign page types to page IDs"""
+    """Assign page types to page IDs with exact percentages"""
+    # Calculate exact counts for each page type
+    core_count = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
+    cpu_count = int(TOTAL_PAGES * CPU_PAGE_PROBABILITY)
+    failure_count = int(TOTAL_PAGES * FAILURE_PAGE_PROBABILITY)
+    delay_count = int(TOTAL_PAGES * DELAY_PAGE_PROBABILITY)
+    regular_count = TOTAL_PAGES - core_count - cpu_count - failure_count - delay_count
+
+    # Create list of page types
+    page_types = (["core"] * core_count +
+                  ["cpu"] * cpu_count +
+                  ["failure"] * failure_count +
+                  ["delay"] * delay_count +
+                  ["regular"] * regular_count)
+
+    # Shuffle to randomize which specific pages get which types
+    random.shuffle(page_types)
+
+    # Assign types to page IDs
     pages = []
-    regular_type = RegularPageType()
-    delay_type = DelayPageType()
-
-    for page_id in page_ids:
-        # Configurable chance of being a delay page
-        if random.random() < DELAY_PAGE_PROBABILITY:
-            page_type = delay_type
-        else:
-            page_type = regular_type
-
+    for page_id, page_type in zip(page_ids, page_types):
         pages.append({
             "page_id": page_id,
             "type": page_type,
-            "url": page_type.get_url_path(page_id)
+            "url": f"/api/{page_id}"
         })
 
     return pages
@@ -102,17 +76,10 @@ def get_page_by_id(page_id):
 
 def get_regular_pages():
     """Get all regular (non-delay) pages"""
-    return [p for p in PAGES if p["type"].get_type_name() == "regular"]
+    return [p for p in PAGES if p["type"] == "regular"]
 
 def choose_target_page():
-    """Choose a target page with configurable bias toward regular pages"""
-    if random.random() < REGULAR_PAGE_BIAS:
-        # Configurable chance: pick from regular pages
-        regular_pages = get_regular_pages()
-        if regular_pages:
-            return random.choice(regular_pages)
-
-    # Remaining chance or no regular pages: pick from all pages
+    """Choose a target page randomly from all pages"""
     return random.choice(PAGES)
 
 def build_graph():
@@ -124,7 +91,7 @@ def build_graph():
         page_id = page["page_id"]
         GRAPH[page_id] = {
             "page_id": page_id,
-            "page_type": page["type"].get_type_name(),
+            "page_type": page["type"],
             "links": [],
             "link_count": 0,
             "generated_at": time.time()
@@ -156,7 +123,7 @@ def build_graph():
     while edges_added < ADDITIONAL_EDGES and attempts < MAX_ATTEMPTS_EDGE_GENERATION:
         attempts += 1
         source_page = random.choice(PAGES)
-        target_page = choose_target_page()  # 90% bias toward regular pages
+        target_page = choose_target_page()  # Random selection from all page types
 
         source_id = source_page["page_id"]
         target_url = target_page["url"]
@@ -198,13 +165,16 @@ def get_root_page():
     root_data = {
         "page_id": "root",
         "page_type": "root",
-        "links": [PAGES[0]["url"]],
+        "links": [PAGES[0]["page_id"]],
         "link_count": 1,
         "message": "This is the root page. Start crawling from here.",
         "total_pages_in_graph": len(PAGES),
         "page_type_distribution": {
-            "regular": len([p for p in PAGES if p["type"].get_type_name() == "regular"]),
-            "delay": len([p for p in PAGES if p["type"].get_type_name() == "delay"])
+            "regular": len([p for p in PAGES if p["type"] == "regular"]),
+            "delay": len([p for p in PAGES if p["type"] == "delay"]),
+            "failure": len([p for p in PAGES if p["type"] == "failure"]),
+            "cpu": len([p for p in PAGES if p["type"] == "cpu"]),
+            "core": len([p for p in PAGES if p["type"] == "core"])
         },
         "requested_at": time.time(),
         "url": "/api/"
@@ -212,16 +182,11 @@ def get_root_page():
     return jsonify(root_data)
 
 @app.route('/api/<page_id>')
-def get_regular_page(page_id):
-    """Get a regular page with its links"""
-    return serve_page(page_id, "regular")
+def get_page(page_id):
+    """Get a page with its links"""
+    return serve_page(page_id)
 
-@app.route('/api/delay/<page_id>')
-def get_delay_page(page_id):
-    """Get a delay page with its links"""
-    return serve_page(page_id, "delay")
-
-def serve_page(page_id, expected_type):
+def serve_page(page_id):
     """Generic page serving function"""
     if page_id not in GRAPH:
         abort(404, description=PAGE_NOT_FOUND_MESSAGE.format(page_id=page_id))
@@ -230,88 +195,63 @@ def serve_page(page_id, expected_type):
     if not page_obj:
         abort(404, description=PAGE_NOT_FOUND_MESSAGE.format(page_id=page_id))
 
-    # Verify page type matches the requested route
-    if page_obj["type"].get_type_name() != expected_type:
-        abort(404, description=WRONG_PAGE_TYPE_MESSAGE.format(page_id=page_id, expected_type=expected_type))
+    page_type = page_obj["type"].get_type_name()
 
     # Apply the appropriate delay for this page type
-    delay = page_obj["type"].get_delay()
+    delay = PAGE_TYPES[page_obj["type"]]["delay"]
     time.sleep(delay)
+
+    # Check if this is a failure page and should fail
+    if page_type == "failure" and random.random() < FAILURE_PAGE_ERROR_RATE:
+        abort(500, description=f"Failure page {page_id} failed (simulated error)")
 
     page_data = GRAPH[page_id].copy()
     page_data["requested_at"] = time.time()
-    page_data["url"] = page_obj["url"]
+    page_data["url"] = f"/api/{page_id}"
     page_data["delay_ms"] = int(delay * 1000)
+
+    # Convert links to just page IDs (not full URLs)
+    link_page_ids = []
+    for link in page_data["links"]:
+        # Extract target page ID from link URL
+        target_page_id = link.split('/')[-1]
+        link_page_ids.append(target_page_id)
+
+    # For CPU pages, use hashseed field instead of links
+    if page_type == "cpu":
+        if link_page_ids:
+            # Generate a random seed - the target page ID is determined by the hash result
+            seed = f"cpu_seed_{random.randint(10000, 99999)}"
+            page_data["hashseed"] = seed
+        else:
+            page_data["hashseed"] = f"cpu_seed_{random.randint(10000, 99999)}"
+        del page_data["links"]  # Remove links field
+
+    # For multi-core pages, use hashseed dict instead of links
+    elif page_type == "core":
+        if link_page_ids:
+            target_page_id = link_page_ids[0]
+            page_data["hashseed"] = {
+                "1": f"core_seed_{random.randint(10000, 99999)}_1",
+                "2": f"core_seed_{random.randint(10000, 99999)}_2",
+                "3": f"core_seed_{random.randint(10000, 99999)}_3",
+                "4": f"core_seed_{random.randint(10000, 99999)}_4"
+            }
+        else:
+            page_data["hashseed"] = {
+                "1": f"core_seed_{random.randint(10000, 99999)}_1",
+                "2": f"core_seed_{random.randint(10000, 99999)}_2",
+                "3": f"core_seed_{random.randint(10000, 99999)}_3",
+                "4": f"core_seed_{random.randint(10000, 99999)}_4"
+            }
+        del page_data["links"]  # Remove links field
+
+    # For regular/delay/failure pages, keep links as page IDs
+    else:
+        page_data["links"] = link_page_ids
 
     return jsonify(page_data)
 
-@app.route('/graph/stats')
-def graph_stats():
-    """Get statistics about the graph"""
-    page_ids = [p["page_id"] for p in PAGES]
-    link_counts = [len(GRAPH[page_id]["links"]) for page_id in page_ids]
-
-    # Count dead ends (pages with no outgoing links)
-    dead_ends = [page_id for page_id in page_ids if len(GRAPH[page_id]["links"]) == 0]
-
-    # Page type statistics
-    regular_pages = [p for p in PAGES if p["type"].get_type_name() == "regular"]
-    delay_pages = [p for p in PAGES if p["type"].get_type_name() == "delay"]
-
-    # Verify connectivity by doing a BFS from first page
-    visited = set()
-    queue = [PAGES[0]["page_id"]]
-    while queue:
-        current = queue.pop(0)
-        if current in visited:
-            continue
-        visited.add(current)
-        for link in GRAPH[current]["links"]:
-            # Extract page_id from URL (could be /api/xxxx or /api/delay/xxxx)
-            parts = link.strip('/').split('/')
-            linked_page = parts[-1]  # Last part is always the page_id
-            if linked_page not in visited:
-                queue.append(linked_page)
-
-    is_connected = len(visited) == len(PAGES)
-
-    # Calculate distribution
-    link_distribution = {}
-    for count in link_counts:
-        link_distribution[count] = link_distribution.get(count, 0) + 1
-
-    return jsonify({
-        "total_pages": len(PAGES),
-        "page_types": {
-            "regular": {
-                "count": len(regular_pages),
-                "percentage": round(len(regular_pages) / len(PAGES) * 100, 1),
-                "delay_ms": 500
-            },
-            "delay": {
-                "count": len(delay_pages),
-                "percentage": round(len(delay_pages) / len(PAGES) * 100, 1),
-                "delay_ms": 5000
-            }
-        },
-        "total_edges": sum(link_counts),
-        "avg_links_per_page": round(sum(link_counts) / len(link_counts), 2),
-        "min_links": min(link_counts),
-        "max_links": max(link_counts),
-        "dead_ends_count": len(dead_ends),
-        "dead_ends": dead_ends[:MAX_DEAD_ENDS_SHOWN],  # Show configurable number of dead ends
-        "is_connected": is_connected,
-        "reachable_from_root": len(visited),
-        "link_distribution": link_distribution,
-        "pages_with_most_links": [
-            {
-                "page_id": page_id,
-                "page_type": GRAPH[page_id]["page_type"],
-                "link_count": len(GRAPH[page_id]["links"])
-            }
-            for page_id in sorted(page_ids, key=lambda p: len(GRAPH[p]["links"]), reverse=True)[:MAX_TOP_PAGES_SHOWN]
-        ]
-    })
 
 @app.route('/graph/random')
 def random_page():
@@ -319,7 +259,7 @@ def random_page():
     page = random.choice(PAGES)
     return jsonify({
         "page_id": page["page_id"],
-        "page_type": page["type"].get_type_name(),
+        "page_type": page["type"],
         "url": page["url"],
         "message": "Use this as a starting point for crawling"
     })
@@ -335,7 +275,7 @@ def sample_pages():
         "pages": [
             {
                 "page_id": page["page_id"],
-                "page_type": page["type"].get_type_name(),
+                "page_type": page["type"],
                 "url": page["url"]
             }
             for page in sample
@@ -343,38 +283,6 @@ def sample_pages():
         "message": "Sample pages for testing different concurrency approaches"
     })
 
-@app.route('/graph/search/<page_id>')
-def search_from_page(page_id):
-    """Get all pages reachable from a given page (BFS traversal)"""
-    if page_id not in GRAPH:
-        abort(404, description=f"Page {page_id} not found")
-
-    # Perform BFS to find all reachable pages
-    visited = set()
-    queue = [page_id]
-    reachable = []
-
-    while queue and len(visited) < MAX_SEARCH_RESULTS:  # Configurable limit to prevent timeout
-        current = queue.pop(0)
-        if current in visited:
-            continue
-
-        visited.add(current)
-        reachable.append(current)
-
-        # Add linked pages to queue
-        for link in GRAPH[current]["links"]:
-            linked_page_id = link.split('/')[-1]  # Extract page_id from /api/xxxx
-            if linked_page_id not in visited:
-                queue.append(linked_page_id)
-
-    return jsonify({
-        "start_page": page_id,
-        "reachable_count": len(reachable),
-        "reachable_pages": reachable,
-        "reachable_urls": [f"/api/{pid}" for pid in reachable],
-        "note": f"Limited to {MAX_SEARCH_RESULTS} pages to prevent timeout"
-    })
 
 @app.route('/health')
 def health():
@@ -388,10 +296,16 @@ def health():
 if __name__ == '__main__':
     print("Starting Web Graph Server...")
     print(f"Generated graph with {len(PAGES)} pages")
-    regular_count = len([p for p in PAGES if p["type"].get_type_name() == "regular"])
-    delay_count = len([p for p in PAGES if p["type"].get_type_name() == "delay"])
+    regular_count = len([p for p in PAGES if p["type"] == "regular"])
+    delay_count = len([p for p in PAGES if p["type"] == "delay"])
+    failure_count = len([p for p in PAGES if p["type"] == "failure"])
+    cpu_count = len([p for p in PAGES if p["type"] == "cpu"])
+    core_count = len([p for p in PAGES if p["type"] == "core"])
     print(f"  - {regular_count} regular pages (500ms delay)")
     print(f"  - {delay_count} delay pages (5000ms delay)")
+    print(f"  - {failure_count} failure pages (500ms delay, 90% error rate)")
+    print(f"  - {cpu_count} CPU pages (100ms delay, requires {CPU_PAGE_ITERATIONS:,} hash iterations)")
+    print(f"  - {core_count} multi-core pages (100ms delay, requires {CORE_PAGE_ITERATIONS_PER_CHAR:,} iterations per character)")
     print("Available endpoints:")
     print("  http://localhost:5000/ - API documentation")
     print("  http://localhost:5000/health - Health check")
