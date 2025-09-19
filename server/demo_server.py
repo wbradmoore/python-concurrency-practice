@@ -260,12 +260,7 @@ def serve_page(page_id):
 def random_page():
     """Get a random page ID to start crawling from (may not reach all pages)"""
     page = random.choice(PAGES)
-    return jsonify({
-        "page_id": page["page_id"],
-        "page_type": page["type"],
-        "url": page["url"],
-        "message": "Random page - may not lead to all other pages"
-    })
+    return "", 307, {"Location": f"/api/{page['page_id']}"}
 
 
 @app.route('/health')
