@@ -8,7 +8,7 @@ and performance characteristics.
 """
 
 # Graph Structure
-TOTAL_PAGES = 1000              # Total number of pages in the graph
+TOTAL_PAGES = 100               # Total number of pages in the graph
 PAGE_ID_LENGTH = 4              # Length of each page ID (e.g., "a1b2")
 AVG_LINKS_PER_PAGE = 3          # Average number of outbound links per page
 
