@@ -149,15 +149,9 @@ def index():
     """API documentation and graph info"""
     return jsonify({
         "name": "Web Graph Server",
-        "description": "A graph of 1000 interconnected web pages for concurrency testing",
+        "description": f"A graph of {TOTAL_PAGES} interconnected web pages for concurrency testing",
         "total_pages": len(PAGE_IDS),
-        "links": [PAGES[0]["url"]],
-        "concurrency_tests": [
-            "Crawl the entire graph",
-            "Find shortest path between two pages",
-            "Count total unique pages reachable from a starting point",
-            "Find pages with most/least outbound links"
-        ]
+        "links": [PAGES[0]["url"]]
     })
 
 @app.route('/api/')
@@ -198,7 +192,7 @@ def serve_page(page_id):
     if not page_obj:
         abort(404, description=PAGE_NOT_FOUND_MESSAGE.format(page_id=page_id))
 
-    page_type = page_obj["type"].get_type_name()
+    page_type = page_obj["type"]
 
     # Apply the appropriate delay for this page type
     delay = PAGE_TYPES[page_obj["type"]]["delay"]
@@ -262,15 +256,52 @@ def random_page():
     page = random.choice(PAGES)
     return "", 307, {"Location": f"/api/{page['page_id']}"}
 
+@app.route('/test/regular')
+def test_regular():
+    """Redirect to a random regular page"""
+    regular_pages = [p for p in PAGES if p["type"] == "regular"]
+    if not regular_pages:
+        abort(404, description="No regular pages found")
+    page = random.choice(regular_pages)
+    return "", 307, {"Location": f"/api/{page['page_id']}"}
 
-@app.route('/health')
-def health():
-    """Health check"""
-    return jsonify({
-        "status": "healthy",
-        "message": "Web Graph Server is running",
-        "graph_size": len(PAGE_IDS)
-    })
+@app.route('/test/delay')
+def test_delay():
+    """Redirect to a random delay page"""
+    delay_pages = [p for p in PAGES if p["type"] == "delay"]
+    if not delay_pages:
+        abort(404, description="No delay pages found")
+    page = random.choice(delay_pages)
+    return "", 307, {"Location": f"/api/{page['page_id']}"}
+
+@app.route('/test/failure')
+def test_failure():
+    """Redirect to a random failure page"""
+    failure_pages = [p for p in PAGES if p["type"] == "failure"]
+    if not failure_pages:
+        abort(404, description="No failure pages found")
+    page = random.choice(failure_pages)
+    return "", 307, {"Location": f"/api/{page['page_id']}"}
+
+@app.route('/test/cpu')
+def test_cpu():
+    """Redirect to a random CPU page"""
+    cpu_pages = [p for p in PAGES if p["type"] == "cpu"]
+    if not cpu_pages:
+        abort(404, description="No CPU pages found")
+    page = random.choice(cpu_pages)
+    return "", 307, {"Location": f"/api/{page['page_id']}"}
+
+@app.route('/test/core')
+def test_core():
+    """Redirect to a random multi-core page"""
+    core_pages = [p for p in PAGES if p["type"] == "core"]
+    if not core_pages:
+        abort(404, description="No core pages found")
+    page = random.choice(core_pages)
+    return "", 307, {"Location": f"/api/{page['page_id']}"}
+
+
 
 if __name__ == '__main__':
     print("Starting Web Graph Server...")
@@ -280,16 +311,14 @@ if __name__ == '__main__':
     failure_count = len([p for p in PAGES if p["type"] == "failure"])
     cpu_count = len([p for p in PAGES if p["type"] == "cpu"])
     core_count = len([p for p in PAGES if p["type"] == "core"])
-    print(f"  - {regular_count} regular pages (500ms delay)")
-    print(f"  - {delay_count} delay pages (5000ms delay)")
-    print(f"  - {failure_count} failure pages (500ms delay, 90% error rate)")
-    print(f"  - {cpu_count} CPU pages (100ms delay, requires {CPU_PAGE_ITERATIONS:,} hash iterations)")
-    print(f"  - {core_count} multi-core pages (100ms delay, requires {CORE_PAGE_ITERATIONS_PER_CHAR:,} iterations per character)")
+    print(f"  - {regular_count} regular pages ({int(REGULAR_PAGE_DELAY*1000)}ms delay)")
+    print(f"  - {delay_count} delay pages ({int(DELAY_PAGE_DELAY*1000)}ms delay)")
+    print(f"  - {failure_count} failure pages ({int(FAILURE_PAGE_DELAY*1000)}ms delay, {int(FAILURE_PAGE_ERROR_RATE*100)}% error rate)")
+    print(f"  - {cpu_count} CPU pages ({int(CPU_PAGE_DELAY*1000)}ms delay, requires {CPU_PAGE_ITERATIONS:,} hash iterations)")
+    print(f"  - {core_count} multi-core pages ({int(CORE_PAGE_DELAY*1000)}ms delay, requires {CORE_PAGE_ITERATIONS_PER_CHAR:,} iterations per character)")
     print("Available endpoints:")
-    print("  http://localhost:5000/ - API documentation")
-    print("  http://localhost:5000/health - Health check")
-    print("  http://localhost:5000/graph/random - Get random starting page")
-    print("  http://localhost:5000/graph/stats - Graph statistics")
+    print(f"  http://localhost:{SERVER_PORT}/ - API documentation")
+    print(f"  http://localhost:{SERVER_PORT}/graph/random - Get random starting page")
     print(f"  {PAGES[0]['url']} - Example page")
 
     app.run(host=SERVER_HOST, port=SERVER_PORT, debug=DEBUG_MODE)
