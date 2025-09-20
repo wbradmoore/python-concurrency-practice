@@ -3,7 +3,10 @@
 
 cleanup() {
     echo "Stopping server..."
-    cd "$(dirname "$0")/.." || exit 1
+    # Save original directory
+    ORIG_DIR="$(pwd)"
+    # Go to server directory where docker-compose.yml is located
+    cd "$(dirname "$0")/.." 2>/dev/null || cd "$ORIG_DIR/server" 2>/dev/null || true
     docker compose down &> /dev/null 2>&1
 }
 
@@ -25,11 +28,11 @@ cd "$(dirname "$0")/.." || exit 1
 
 echo "Starting server..."
 docker compose down &> /dev/null 2>&1
-docker compose up --build -d &> /dev/null
+docker compose up --build -d
 
 echo -n "Waiting for server"
 for i in {1..30}; do
-    if curl -s http://localhost:5000/health &> /dev/null; then
+    if curl -s http://localhost:5000/ &> /dev/null; then
         echo " ready!"
         break
     fi

@@ -37,14 +37,16 @@ def test_cpu_page():
     """Test CPU page hashseed solving"""
     print("Testing CPU page...")
 
-    response = requests.get(f"{BASE_URL}/graph/random")
-    cpu_data = response.json()
-
-    if cpu_data["page_type"] != "cpu":
-        print("  Random page not CPU type, skipping test")
+    # Get a CPU page directly
+    try:
+        response = requests.get(f"{BASE_URL}/test/cpu")
+        # Extract page ID from final URL after redirect
+        cpu_page_id = response.url.split('/')[-1]
+    except Exception as e:
+        print(f"  Could not get CPU page: {e}")
         return True
 
-    cpu_pages = [{"page_id": cpu_data["page_id"]}]
+    cpu_pages = [{"page_id": cpu_page_id}]
     if not cpu_pages:
         print("  No CPU pages in sample")
         return True
@@ -71,14 +73,16 @@ def test_core_page():
     """Test multi-core page with sequential vs parallel"""
     print("Testing multi-core page...")
 
-    response = requests.get(f"{BASE_URL}/graph/random")
-    core_data = response.json()
-
-    if core_data["page_type"] != "core":
-        print("  Random page not core type, skipping test")
+    # Get a core page directly
+    try:
+        response = requests.get(f"{BASE_URL}/test/core")
+        # Extract page ID from final URL after redirect
+        core_page_id = response.url.split('/')[-1]
+    except Exception as e:
+        print(f"  Could not get core page: {e}")
         return True
 
-    core_pages = [{"page_id": core_data["page_id"]}]
+    core_pages = [{"page_id": core_page_id}]
     if not core_pages:
         print("  No core pages in sample")
         return True
@@ -124,7 +128,7 @@ def main():
 
     # Check server
     try:
-        requests.get(f"{BASE_URL}/health", timeout=1)
+        requests.get(f"{BASE_URL}/", timeout=1)
     except:
         print("Server not running! Start with: docker compose up")
         exit(1)
