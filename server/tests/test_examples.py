@@ -39,7 +39,7 @@ def test_cpu_page():
 
     # Get a CPU page directly
     try:
-        response = requests.get(f"{BASE_URL}/test/cpu")
+        response = requests.get(f"{BASE_URL}/api/test/cpu")
         # Extract page ID from final URL after redirect
         cpu_page_id = response.url.split('/')[-1]
     except Exception as e:
@@ -75,7 +75,7 @@ def test_core_page():
 
     # Get a core page directly
     try:
-        response = requests.get(f"{BASE_URL}/test/core")
+        response = requests.get(f"{BASE_URL}/api/test/core")
         # Extract page ID from final URL after redirect
         core_page_id = response.url.split('/')[-1]
     except Exception as e:

@@ -41,7 +41,7 @@ def test_cpu_seed_encoding():
     print("Testing CPU seed encoding...")
 
     # Get a CPU page
-    response = requests.get(f"{BASE_URL}/test/cpu")
+    response = requests.get(f"{BASE_URL}/api/test/cpu")
     cpu_page_id = response.url.split('/')[-1]
 
     # Fetch the page
@@ -78,7 +78,7 @@ def test_core_seed_encoding():
     print("Testing core seed encoding...")
 
     # Get a core page
-    response = requests.get(f"{BASE_URL}/test/core")
+    response = requests.get(f"{BASE_URL}/api/test/core")
     core_page_id = response.url.split('/')[-1]
 
     # Fetch the page

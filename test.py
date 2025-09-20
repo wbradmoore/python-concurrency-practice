@@ -18,8 +18,11 @@ class Crawler:
     def processpage(self,id):
         print(f"Checking {id}...")
         url = self.hostname+(id if id else "test/cpu")
-        while True:
+        print(url)
+        max_retries = 20
+        while max_retries:
             try:
+                max_retries -= 1
                 resp = requests.get(url)
                 data = resp.json()
                 break
