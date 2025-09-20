@@ -295,7 +295,7 @@ def random_page():
     page = random.choice(PAGES)
     return "", 307, {"Location": f"/api/{page['page_id']}"}
 
-@app.route('/test/regular')
+@app.route('/api/test/regular')
 def test_regular():
     """Redirect to a random regular page"""
     regular_pages = [p for p in PAGES if p["type"] == "regular"]
@@ -304,7 +304,7 @@ def test_regular():
     page = random.choice(regular_pages)
     return "", 307, {"Location": f"/api/{page['page_id']}"}
 
-@app.route('/test/delay')
+@app.route('/api/test/delay')
 def test_delay():
     """Redirect to a random delay page"""
     delay_pages = [p for p in PAGES if p["type"] == "delay"]
@@ -313,7 +313,7 @@ def test_delay():
     page = random.choice(delay_pages)
     return "", 307, {"Location": f"/api/{page['page_id']}"}
 
-@app.route('/test/failure')
+@app.route('/api/test/failure')
 def test_failure():
     """Redirect to a random failure page"""
     failure_pages = [p for p in PAGES if p["type"] == "failure"]
@@ -322,7 +322,7 @@ def test_failure():
     page = random.choice(failure_pages)
     return "", 307, {"Location": f"/api/{page['page_id']}"}
 
-@app.route('/test/cpu')
+@app.route('/api/test/cpu')
 def test_cpu():
     """Redirect to a random CPU page"""
     cpu_pages = [p for p in PAGES if p["type"] == "cpu"]
@@ -331,7 +331,7 @@ def test_cpu():
     page = random.choice(cpu_pages)
     return "", 307, {"Location": f"/api/{page['page_id']}"}
 
-@app.route('/test/core')
+@app.route('/api/test/core')
 def test_core():
     """Redirect to a random multi-core page"""
     core_pages = [p for p in PAGES if p["type"] == "core"]

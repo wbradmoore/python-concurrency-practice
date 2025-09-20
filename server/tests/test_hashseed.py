@@ -34,7 +34,7 @@ def test_cpu_hashseed():
     print("Testing CPU hashseed validation...")
 
     # Get a CPU page
-    response = requests.get(f"{BASE_URL}/test/cpu")
+    response = requests.get(f"{BASE_URL}/api/test/cpu")
     cpu_page_id = response.url.split('/')[-1]
 
     # Fetch the page to get its hashseed
@@ -71,7 +71,7 @@ def test_core_hashseed():
     print("Testing core hashseed validation...")
 
     # Get a core page
-    response = requests.get(f"{BASE_URL}/test/core")
+    response = requests.get(f"{BASE_URL}/api/test/core")
     core_page_id = response.url.split('/')[-1]
 
     # Fetch the page to get its hashseed dict
@@ -122,7 +122,7 @@ def test_determinism():
     print("Testing hashseed determinism...")
 
     # Get the same CPU page multiple times
-    response = requests.get(f"{BASE_URL}/test/cpu")
+    response = requests.get(f"{BASE_URL}/api/test/cpu")
     cpu_page_id = response.url.split('/')[-1]
 
     seeds = []
@@ -138,7 +138,7 @@ def test_determinism():
         return False
 
     # Test core page determinism
-    response = requests.get(f"{BASE_URL}/test/core")
+    response = requests.get(f"{BASE_URL}/api/test/core")
     core_page_id = response.url.split('/')[-1]
 
     seed_sets = []

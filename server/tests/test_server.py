@@ -21,7 +21,7 @@ def test_page_types():
     # Test each page type using the new test endpoints
     for page_type in ["regular", "delay", "failure", "cpu", "core"]:
         try:
-            response = requests.get(f"{BASE_URL}/test/{page_type}")
+            response = requests.get(f"{BASE_URL}/api/test/{page_type}")
             # Extract page ID from final URL after redirect
             page_id = response.url.split('/')[-1]
             page = {"page_id": page_id, "page_type": page_type}
