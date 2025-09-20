@@ -6,7 +6,7 @@ WORKDIR /app
 RUN pip install flask
 
 # Copy server files
-COPY server.py config.py .
+COPY server.py config.py hashcacher.py .
 
 # Expose port
 EXPOSE 5000

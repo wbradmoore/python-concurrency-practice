@@ -3,6 +3,8 @@ services:
     build: .
     ports:
       - "5000:5000"
+    volumes:
+      - ./hashcache.json:/app/hashcache.json
     environment:
       - FLASK_ENV=production
     restart: unless-stopped

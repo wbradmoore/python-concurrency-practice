@@ -31,10 +31,10 @@ CORE_PAGE_DELAY = 0.1           # Delay for multi-core pages (100ms - minimal I/
 FAILURE_PAGE_ERROR_RATE = 0.9   # Probability that failure pages return 500 error (90%)
 
 # CPU Configuration
-CPU_PAGE_ITERATIONS = 50000000  # Number of hash iterations for CPU work (~5 seconds)
+CPU_PAGE_ITERATIONS = 5000000  # Number of hash iterations for CPU work (5M iterations)
 
 # Multi-Core Configuration
-CORE_PAGE_ITERATIONS_PER_CHAR = 12500000  # Hash iterations per character (4 chars × 12.5M = 50M total)
+CORE_PAGE_ITERATIONS_PER_CHAR = 1250000  # Hash iterations per character (1.25M iterations)
 CORE_PAGE_CHARS = 4             # Number of characters to compute in parallel
 
 
