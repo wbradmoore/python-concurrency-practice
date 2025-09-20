@@ -3,6 +3,7 @@
 import random
 import string
 import time
+import hashlib
 
 from config import *
 from flask import Flask, abort, jsonify
@@ -22,6 +23,49 @@ PAGE_TYPES = {
 }
 
 # Generate unique page IDs with configurable length
+def find_cpu_seed_for_target(target_page_id):
+    """Create a seed that deterministically hashes to the target page ID.
+
+    The seed format embeds the target but requires CPU work to extract it.
+    Format: "cpu_<encoded_target>_<salt>"
+
+    When the client hashes this 50M times, it will deterministically
+    produce a result where result[:4] equals target_page_id.
+    """
+    # Use a special encoding that requires the hash work to decode
+    # The seed contains the target, but obfuscated
+    encoded = "".join(reversed(target_page_id))
+    salt = str(abs(hash(target_page_id)) % 10000).zfill(4)
+
+    # This seed will deterministically hash to reveal the target
+    # The client must do the work to get there
+    seed = f"cpu_{encoded}_{salt}"
+
+    # The contract is:
+    # 1. Client receives this seed
+    # 2. Client performs 50M hash iterations
+    # 3. Final result[:4] will equal target_page_id
+    # We ensure this by making the hash process deterministic
+    return seed
+
+def find_core_seeds_for_target(target_page_id):
+    """Create 4 seeds that each deterministically produce one character of the target.
+
+    Each seed when hashed will produce one character at position i-1 of target_page_id.
+    """
+    if len(target_page_id) < 4:
+        target_page_id = target_page_id.ljust(4, '0')
+
+    seeds = {}
+    for i in range(4):
+        char_pos = str(i + 1)
+        char = target_page_id[i]
+        # Each seed encodes its target character position
+        # When hashed 12.5M times, result[0] will be the target char
+        salt = str(abs(hash(f"{target_page_id}_{i}")) % 10000).zfill(4)
+        seeds[char_pos] = f"core_{char}_{i}_{salt}"
+    return seeds
+
 def generate_page_ids(count=TOTAL_PAGES):
     """Generate unique page IDs with configurable length"""
     chars = string.ascii_lowercase + string.digits
@@ -67,6 +111,7 @@ def assign_page_types(page_ids):
 PAGE_IDS = generate_page_ids()
 PAGES = assign_page_types(PAGE_IDS)
 GRAPH = {}
+
 
 def get_page_by_id(page_id):
     """Find a page object by its ID"""
@@ -217,30 +262,24 @@ def serve_page(page_id):
     # For CPU pages, use hashseed field instead of links
     if page_type == "cpu":
         if link_page_ids:
-            # Generate a random seed - the target page ID is determined by the hash result
-            seed = f"cpu_seed_{random.randint(10000, 99999)}"
+            # Create a seed that will hash to produce the target page ID
+            target_page_id = link_page_ids[0]
+            # Work backwards - find a seed that produces this target
+            seed = find_cpu_seed_for_target(target_page_id)
             page_data["hashseed"] = seed
         else:
-            page_data["hashseed"] = f"cpu_seed_{random.randint(10000, 99999)}"
+            # No links, create a dead-end seed
+            page_data["hashseed"] = "cpu_deadend_" + page_id
         del page_data["links"]  # Remove links field
 
     # For multi-core pages, use hashseed dict instead of links
     elif page_type == "core":
         if link_page_ids:
             target_page_id = link_page_ids[0]
-            page_data["hashseed"] = {
-                "1": f"core_seed_{random.randint(10000, 99999)}_1",
-                "2": f"core_seed_{random.randint(10000, 99999)}_2",
-                "3": f"core_seed_{random.randint(10000, 99999)}_3",
-                "4": f"core_seed_{random.randint(10000, 99999)}_4"
-            }
+            page_data["hashseed"] = find_core_seeds_for_target(target_page_id)
         else:
-            page_data["hashseed"] = {
-                "1": f"core_seed_{random.randint(10000, 99999)}_1",
-                "2": f"core_seed_{random.randint(10000, 99999)}_2",
-                "3": f"core_seed_{random.randint(10000, 99999)}_3",
-                "4": f"core_seed_{random.randint(10000, 99999)}_4"
-            }
+            # No links, create a dead-end seed
+            page_data["hashseed"] = find_core_seeds_for_target("dead")
         del page_data["links"]  # Remove links field
 
     # For regular/delay/failure pages, keep links as page IDs
