@@ -22,49 +22,140 @@ PAGE_TYPES = {
     "core": {"delay": CORE_PAGE_DELAY}
 }
 
-# Generate unique page IDs with configurable length
-def find_cpu_seed_for_target(target_page_id):
-    """Create a seed that deterministically hashes to the target page ID.
+# Pre-computed seed pools
+CPU_SEED_POOL = {}  # seed -> page_id mapping
+CORE_SEED_POOL = {}  # seed -> character mapping
+USED_CPU_SEEDS = set()
+USED_CORE_SEEDS = set()
 
-    The seed format embeds the target but requires CPU work to extract it.
-    Format: "cpu_<encoded_target>_<salt>"
+def calculate_needed_seeds():
+    """Calculate how many seeds we need for CPU and core pages"""
+    cpu_pages = int(TOTAL_PAGES * CPU_PAGE_PROBABILITY)
+    core_pages = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
 
-    When the client hashes this 50M times, it will deterministically
-    produce a result where result[:4] equals target_page_id.
-    """
-    # Use a special encoding that requires the hash work to decode
-    # The seed contains the target, but obfuscated
-    encoded = "".join(reversed(target_page_id))
-    salt = str(abs(hash(target_page_id)) % 10000).zfill(4)
+    # Each page has average links
+    cpu_seeds_needed = cpu_pages * AVG_LINKS_PER_PAGE
+    core_seeds_needed = core_pages * AVG_LINKS_PER_PAGE * CORE_PAGE_CHARS
 
-    # This seed will deterministically hash to reveal the target
-    # The client must do the work to get there
-    seed = f"cpu_{encoded}_{salt}"
+    # Add 10% buffer
+    cpu_seeds_needed = int(cpu_seeds_needed * 1.1)
+    core_seeds_needed = int(core_seeds_needed * 1.1)
 
-    # The contract is:
-    # 1. Client receives this seed
-    # 2. Client performs 50M hash iterations
-    # 3. Final result[:4] will equal target_page_id
-    # We ensure this by making the hash process deterministic
-    return seed
+    return cpu_seeds_needed, core_seeds_needed
 
-def find_core_seeds_for_target(target_page_id):
-    """Create 4 seeds that each deterministically produce one character of the target.
+def generate_random_seed():
+    """Generate a random seed string"""
+    import string
+    chars = string.ascii_lowercase + string.digits
+    return ''.join(random.choices(chars, k=16))
 
-    Each seed when hashed will produce one character at position i-1 of target_page_id.
-    """
-    if len(target_page_id) < 4:
-        target_page_id = target_page_id.ljust(4, '0')
+def compute_cpu_seed_pools():
+    """Pre-compute CPU seed pools by generating random seeds and hashing them"""
+    global CPU_SEED_POOL
 
-    seeds = {}
-    for i in range(4):
-        char_pos = str(i + 1)
-        char = target_page_id[i]
-        # Each seed encodes its target character position
-        # When hashed 12.5M times, result[0] will be the target char
-        salt = str(abs(hash(f"{target_page_id}_{i}")) % 10000).zfill(4)
-        seeds[char_pos] = f"core_{char}_{i}_{salt}"
+    cpu_needed, _ = calculate_needed_seeds()
+    print(f"Computing {cpu_needed} CPU seeds...")
+
+    seeds_generated = 0
+    attempts = 0
+    max_attempts = cpu_needed * 10  # Limit attempts to avoid infinite loops
+
+    while seeds_generated < cpu_needed and attempts < max_attempts:
+        attempts += 1
+        seed = generate_random_seed()
+
+        # Hash the seed to see what page ID it produces
+        result = seed
+        for i in range(CPU_PAGE_ITERATIONS):
+            result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+
+        page_id = result[:PAGE_ID_LENGTH]
+
+        # Keep this seed->page_id mapping if we haven't used this seed before
+        if seed not in CPU_SEED_POOL:
+            CPU_SEED_POOL[seed] = page_id
+            seeds_generated += 1
+
+        if attempts % 100 == 0:
+            print(f"  Generated {seeds_generated}/{cpu_needed} CPU seeds ({attempts} attempts)")
+
+    print(f"Generated {seeds_generated} CPU seeds in {attempts} attempts")
+
+def compute_core_seed_pools():
+    """Pre-compute core seed pools by generating random seeds and hashing them"""
+    global CORE_SEED_POOL
+
+    _, core_needed = calculate_needed_seeds()
+    print(f"Computing {core_needed} core character seeds...")
+
+    seeds_generated = 0
+    attempts = 0
+    max_attempts = core_needed * 10
+
+    while seeds_generated < core_needed and attempts < max_attempts:
+        attempts += 1
+        seed = generate_random_seed()
+
+        # Hash the seed 12.5M times
+        result = seed
+        for i in range(CORE_PAGE_ITERATIONS_PER_CHAR):
+            result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+
+        char = result[0]  # First character
+
+        # Store seed -> character mapping
+        if seed not in CORE_SEED_POOL:
+            CORE_SEED_POOL[seed] = char
+            seeds_generated += 1
+
+        if attempts % 100 == 0:
+            print(f"  Generated {seeds_generated}/{core_needed} core seeds ({attempts} attempts)")
+
+    print(f"Generated {seeds_generated} core character seeds in {attempts} attempts")
+
+def get_cpu_seeds_for_targets(target_page_ids):
+    """Get CPU seeds that hash to the target page IDs"""
+    seeds = []
+    available_targets = set(CPU_SEED_POOL.values())
+
+    for target in target_page_ids:
+        # Only provide seeds for targets we actually have seeds for
+        if target in available_targets:
+            # Find an unused seed that maps to this target
+            for seed, page_id in CPU_SEED_POOL.items():
+                if page_id == target and seed not in USED_CPU_SEEDS:
+                    seeds.append(seed)
+                    USED_CPU_SEEDS.add(seed)
+                    break
     return seeds
+
+def get_core_seeds_for_targets(target_page_ids):
+    """Get core seed groups (4 seeds each) that hash to the target page IDs"""
+    seed_groups = []
+
+    for target in target_page_ids:
+        if len(target) < 4:
+            target = target.ljust(4, '0')
+
+        # Find 4 seeds that produce the 4 characters of this target
+        quad = []
+        for char in target[:4]:
+            found_seed = False
+            for seed, seed_char in CORE_SEED_POOL.items():
+                if seed_char == char and seed not in USED_CORE_SEEDS:
+                    quad.append(seed)
+                    USED_CORE_SEEDS.add(seed)
+                    found_seed = True
+                    break
+
+            if not found_seed:
+                # Couldn't find a seed for this character, abandon this target
+                break
+
+        if len(quad) == 4:
+            seed_groups.append(quad)
+
+    return seed_groups
 
 def generate_page_ids(count=TOTAL_PAGES):
     """Generate unique page IDs with configurable length"""
@@ -79,6 +170,18 @@ def generate_page_ids(count=TOTAL_PAGES):
 
 def assign_page_types(page_ids):
     """Assign page types to page IDs with exact percentages"""
+    global CPU_SEED_POOL, CORE_SEED_POOL
+
+    # Get page IDs that came from seed pools
+    cpu_page_ids_from_seeds = set(CPU_SEED_POOL.values())
+    core_page_ids_from_seeds = set()
+
+    # For core, we need to reconstruct which page IDs came from core seeds
+    core_chars = list(CORE_SEED_POOL.values())
+    for i in range(0, len(core_chars) - 3, 4):
+        page_id = ''.join(core_chars[i:i+4])
+        core_page_ids_from_seeds.add(page_id)
+
     # Calculate exact counts for each page type
     core_count = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
     cpu_count = int(TOTAL_PAGES * CPU_PAGE_PROBABILITY)
@@ -86,19 +189,31 @@ def assign_page_types(page_ids):
     delay_count = int(TOTAL_PAGES * DELAY_PAGE_PROBABILITY)
     regular_count = TOTAL_PAGES - core_count - cpu_count - failure_count - delay_count
 
-    # Create list of page types
-    page_types = (["core"] * core_count +
-                  ["cpu"] * cpu_count +
-                  ["failure"] * failure_count +
-                  ["delay"] * delay_count +
-                  ["regular"] * regular_count)
-
-    # Shuffle to randomize which specific pages get which types
-    random.shuffle(page_types)
-
     # Assign types to page IDs
     pages = []
-    for page_id, page_type in zip(page_ids, page_types):
+    assigned_cpu = 0
+    assigned_core = 0
+    assigned_failure = 0
+    assigned_delay = 0
+
+    for page_id in page_ids:
+        # Assign page types based on seed pools first
+        if page_id in cpu_page_ids_from_seeds and assigned_cpu < cpu_count:
+            page_type = "cpu"
+            assigned_cpu += 1
+        elif page_id in core_page_ids_from_seeds and assigned_core < core_count:
+            page_type = "core"
+            assigned_core += 1
+        # For remaining pages, assign other types randomly
+        elif assigned_failure < failure_count:
+            page_type = "failure"
+            assigned_failure += 1
+        elif assigned_delay < delay_count:
+            page_type = "delay"
+            assigned_delay += 1
+        else:
+            page_type = "regular"
+
         pages.append({
             "page_id": page_id,
             "type": page_type,
@@ -108,7 +223,40 @@ def assign_page_types(page_ids):
     return pages
 
 # Generate the graph structure
-PAGE_IDS = generate_page_ids()
+print("Pre-computing hashseed pools...")
+compute_cpu_seed_pools()
+compute_core_seed_pools()
+
+print("Collecting page IDs from seed pools...")
+# Get page IDs from CPU seed pool
+cpu_page_ids = list(CPU_SEED_POOL.values())
+
+# For core seeds, we need to generate page IDs by combining 4 characters
+# Group core seeds by character and create valid page IDs
+core_chars = list(CORE_SEED_POOL.values())
+core_page_ids = []
+# Create page IDs from groups of 4 characters
+for i in range(0, len(core_chars) - 3, 4):
+    page_id = ''.join(core_chars[i:i+4])
+    core_page_ids.append(page_id)
+
+# Generate additional random page IDs to reach TOTAL_PAGES
+existing_page_ids = set(cpu_page_ids + core_page_ids)
+print(f"Generated {len(cpu_page_ids)} CPU page IDs and {len(core_page_ids)} core page IDs")
+
+# Fill remaining pages with random IDs
+additional_needed = TOTAL_PAGES - len(existing_page_ids)
+if additional_needed > 0:
+    print(f"Generating {additional_needed} additional random page IDs...")
+    additional_ids = generate_page_ids(additional_needed)
+    # Make sure they don't conflict with seed-generated IDs
+    while any(pid in existing_page_ids for pid in additional_ids):
+        additional_ids = generate_page_ids(additional_needed)
+    PAGE_IDS = list(existing_page_ids) + additional_ids
+else:
+    PAGE_IDS = list(existing_page_ids)
+
+print("Assigning page types...")
 PAGES = assign_page_types(PAGE_IDS)
 GRAPH = {}
 
@@ -259,27 +407,26 @@ def serve_page(page_id):
         target_page_id = link.split('/')[-1]
         link_page_ids.append(target_page_id)
 
-    # For CPU pages, use hashseed field instead of links
+    # For CPU pages, use hashseeds list instead of links
     if page_type == "cpu":
         if link_page_ids:
-            # Create a seed that will hash to produce the target page ID
-            target_page_id = link_page_ids[0]
-            # Work backwards - find a seed that produces this target
-            seed = find_cpu_seed_for_target(target_page_id)
-            page_data["hashseed"] = seed
+            # Get pre-computed seeds for these targets
+            seeds = get_cpu_seeds_for_targets(link_page_ids)
+            page_data["hashseeds"] = seeds
         else:
-            # No links, create a dead-end seed
-            page_data["hashseed"] = "cpu_deadend_" + page_id
+            # No links, empty list
+            page_data["hashseeds"] = []
         del page_data["links"]  # Remove links field
 
-    # For multi-core pages, use hashseed dict instead of links
+    # For multi-core pages, use quadseeds list of lists instead of links
     elif page_type == "core":
         if link_page_ids:
-            target_page_id = link_page_ids[0]
-            page_data["hashseed"] = find_core_seeds_for_target(target_page_id)
+            # Get pre-computed seed groups for these targets
+            seed_groups = get_core_seeds_for_targets(link_page_ids)
+            page_data["quadseeds"] = seed_groups
         else:
-            # No links, create a dead-end seed
-            page_data["hashseed"] = find_core_seeds_for_target("dead")
+            # No links, empty list
+            page_data["quadseeds"] = []
         del page_data["links"]  # Remove links field
 
     # For regular/delay/failure pages, keep links as page IDs
