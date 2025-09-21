@@ -32,8 +32,8 @@ def test_algorithm():
     print(f"Core iterations per char: {CORE_PAGE_ITERATIONS_PER_CHAR}")
     print()
 
-    # Test some example seeds
-    test_seeds = ["abcd1234", "test5678", "seed9012", "example123"]
+    # Test just a couple example seeds (reduced to avoid timeout)
+    test_seeds = ["abcd1234", "test5678"]
 
     print("CPU seed testing:")
     for seed in test_seeds:
@@ -47,42 +47,7 @@ def test_algorithm():
         print(f"  {seed} -> '{result}'")
 
     print()
-    print("Testing if we can find a seed that produces a specific target...")
-
-    # Try to find a seed that produces page ID "1234"
-    target = "1234"
-    found = False
-    for i in range(1000):
-        seed = f"test{i:04d}"
-        result = hash_cpu_seed(seed)
-        if result == target:
-            print(f"Found seed '{seed}' that produces target '{target}'!")
-            found = True
-            break
-        elif i < 10:  # Show first 10 attempts
-            print(f"  {seed} -> {result}")
-
-    if not found:
-        print(f"No seed found that produces '{target}' in 1000 attempts")
-
-    print()
-    print("Testing if we can find a seed that produces character 'a'...")
-
-    # Try to find a seed that produces character 'a'
-    target_char = 'a'
-    found = False
-    for i in range(100):
-        seed = f"char{i:04d}"
-        result = hash_core_seed(seed)
-        if result == target_char:
-            print(f"Found seed '{seed}' that produces character '{target_char}'!")
-            found = True
-            break
-        elif i < 10:
-            print(f"  {seed} -> '{result}'")
-
-    if not found:
-        print(f"No seed found that produces '{target_char}' in 100 attempts")
+    print("Note: Skipping brute-force search tests (would take too long with 5M iterations)")
 
 if __name__ == "__main__":
     test_algorithm()

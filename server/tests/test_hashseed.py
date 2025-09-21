@@ -41,10 +41,14 @@ def test_cpu_hashseed():
     response = requests.get(f"{BASE_URL}/api/{cpu_page_id}")
     data = response.json()
 
-    assert "hashseed" in data, "CPU page should have hashseed field"
-    assert isinstance(data["hashseed"], str), "CPU hashseed should be a string"
+    assert "hashseeds" in data, "CPU page should have hashseeds field"
+    assert isinstance(data["hashseeds"], list), "CPU hashseeds should be a list"
 
-    seed = data["hashseed"]
+    if not data["hashseeds"]:
+        print("  ⚠ No hashseeds found")
+        return True
+
+    seed = data["hashseeds"][0]
     print(f"  CPU page {cpu_page_id} has hashseed: {seed}")
 
     # Hash the seed to get the target page ID
@@ -78,11 +82,17 @@ def test_core_hashseed():
     response = requests.get(f"{BASE_URL}/api/{core_page_id}")
     data = response.json()
 
-    assert "hashseed" in data, "Core page should have hashseed field"
-    assert isinstance(data["hashseed"], dict), "Core hashseed should be a dict"
-    assert len(data["hashseed"]) == 4, "Core hashseed should have 4 entries"
+    assert "quadseeds" in data, "Core page should have quadseeds field"
+    assert isinstance(data["quadseeds"], list), "Core quadseeds should be a list"
 
-    hashseeds = data["hashseed"]
+    if not data["quadseeds"]:
+        print("  ⚠ No quadseeds found")
+        return True
+
+    quadseed = data["quadseeds"][0]
+    assert isinstance(quadseed, list) and len(quadseed) == 4, "Each quadseed should be list of 4"
+
+    hashseeds = {str(i+1): seed for i, seed in enumerate(quadseed)}
     print(f"  Core page {core_page_id} has hashseed dict with {len(hashseeds)} seeds")
 
     # Hash each seed in parallel to get the 4 characters
@@ -129,7 +139,8 @@ def test_determinism():
     for i in range(3):
         response = requests.get(f"{BASE_URL}/api/{cpu_page_id}")
         data = response.json()
-        seeds.append(data["hashseed"])
+        if data.get("hashseeds"):
+            seeds.append(data["hashseeds"][0] if data["hashseeds"] else None)
 
     if len(set(seeds)) == 1:
         print(f"  ✓ CPU page {cpu_page_id} returns same hashseed every time: {seeds[0]}")
@@ -145,7 +156,8 @@ def test_determinism():
     for i in range(3):
         response = requests.get(f"{BASE_URL}/api/{core_page_id}")
         data = response.json()
-        seed_sets.append(str(data["hashseed"]))
+        if data.get("quadseeds"):
+            seed_sets.append(str(data["quadseeds"][0] if data["quadseeds"] else None))
 
     if len(set(seed_sets)) == 1:
         print(f"  ✓ Core page {core_page_id} returns same hashseed dict every time")

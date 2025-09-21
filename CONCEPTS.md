@@ -86,8 +86,8 @@ for link in data["links"]:
 **CPU Pages:**
 ```python
 data = requests.get("http://localhost:5000/api/a1b2").json()
-result = data["hashseed"]
-for i in range(50000000):
+result = data["hashseeds"][0]  # Get first hashseed
+for i in range(5000000):
     result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
 target_page = result[:4]
 ```

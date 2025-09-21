@@ -55,11 +55,15 @@ def test_cpu_page():
     response = requests.get(f"{BASE_URL}/api/{page['page_id']}")
     data = response.json()
 
-    if 'hashseed' not in data:
-        print("  No hashseed found")
+    if 'hashseeds' not in data:
+        print("  No hashseeds found")
         return True
 
-    target_page_id = solve_cpu_hashseed(data['hashseed'])
+    if not data['hashseeds']:
+        print("  Empty hashseeds list")
+        return True
+
+    target_page_id = solve_cpu_hashseed(data['hashseeds'][0])
     print(f"  Computed target: {target_page_id}")
 
     # Try accessing computed target
@@ -91,13 +95,21 @@ def test_core_page():
     response = requests.get(f"{BASE_URL}/api/{page['page_id']}")
     data = response.json()
 
-    hashseed_dict = data['hashseed']
+    if 'quadseeds' not in data:
+        print("  No quadseeds found")
+        return True
+
+    if not data['quadseeds']:
+        print("  Empty quadseeds list")
+        return True
+
+    quadseed = data['quadseeds'][0]  # Use first quad
 
     # Sequential approach
     start_time = time.time()
     results_seq = []
-    for pos_str in ["1", "2", "3", "4"]:
-        pos, char = solve_core_hashseed(hashseed_dict[pos_str], int(pos_str))
+    for i, seed in enumerate(quadseed):
+        pos, char = solve_core_hashseed(seed, i + 1)
         results_seq.append((pos, char))
     results_seq.sort()
     target_seq = "".join([char for _, char in results_seq])
@@ -107,8 +119,8 @@ def test_core_page():
     start_time = time.time()
     with ThreadPoolExecutor(max_workers=4) as executor:
         futures = []
-        for pos_str in ["1", "2", "3", "4"]:
-            futures.append(executor.submit(solve_core_hashseed, hashseed_dict[pos_str], int(pos_str)))
+        for i, seed in enumerate(quadseed):
+            futures.append(executor.submit(solve_core_hashseed, seed, i + 1))
         results_par = [future.result() for future in futures]
     results_par.sort()
     target_par = "".join([char for _, char in results_par])

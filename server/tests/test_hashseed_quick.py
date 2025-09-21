@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Quick test for CPU/core hashseed logic with fewer iterations.
+Quick test for CPU/core hashseed computation.
 """
 
 import requests
@@ -10,35 +10,13 @@ import os
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import SERVER_PORT
+from config import SERVER_PORT, CPU_PAGE_ITERATIONS, CORE_PAGE_ITERATIONS_PER_CHAR
 
 BASE_URL = f"http://localhost:{SERVER_PORT}"
 
-# Use smaller iteration counts for quick testing
-TEST_CPU_ITERATIONS = 1000
-TEST_CORE_ITERATIONS = 250
-
-def quick_hash_cpu_seed(seed):
-    """Hash a CPU seed with fewer iterations for testing"""
-    result = seed
-    for i in range(TEST_CPU_ITERATIONS):
-        result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
-    return result[:4]
-
-def decode_cpu_seed(seed):
-    """Decode the target from the CPU seed format"""
-    # Seed format: "cpu_<reversed_target>_<salt>"
-    parts = seed.split('_')
-    if len(parts) >= 3 and parts[0] == 'cpu':
-        encoded = parts[1]
-        # Reverse to get original target
-        target = ''.join(reversed(encoded))
-        return target
-    return None
-
-def test_cpu_seed_encoding():
-    """Test CPU seed encoding/decoding logic"""
-    print("Testing CPU seed encoding...")
+def test_cpu_seed_computation():
+    """Test CPU seed computation"""
+    print("Testing CPU seed computation...")
 
     # Get a CPU page
     response = requests.get(f"{BASE_URL}/api/test/cpu")
@@ -48,34 +26,33 @@ def test_cpu_seed_encoding():
     response = requests.get(f"{BASE_URL}/api/{cpu_page_id}")
     data = response.json()
 
-    seed = data["hashseed"]
+    if "hashseeds" not in data or not data["hashseeds"]:
+        print(f"  CPU page {cpu_page_id} has no hashseeds")
+        return True  # Not an error, page might not have links
+
+    seed = data["hashseeds"][0]
     print(f"  CPU page {cpu_page_id}")
     print(f"  Hashseed: {seed}")
 
-    # Decode the target from the seed
-    decoded_target = decode_cpu_seed(seed)
-    print(f"  Decoded target: {decoded_target}")
+    # Compute the target
+    result = seed
+    for i in range(CPU_PAGE_ITERATIONS):
+        result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+    target = result[:4]
+    print(f"  Computed target: {target}")
 
-    # Check if decoded target is valid
-    if decoded_target:
-        response = requests.get(f"{BASE_URL}/api/{decoded_target}")
-        if response.status_code in [200, 500]:
-            print(f"  ✓ Decoded target {decoded_target} is a valid page")
-            return True
-        else:
-            print(f"  ✗ Decoded target {decoded_target} not found (status {response.status_code})")
-            # Show what pages do exist for debugging
-            response = requests.get(f"{BASE_URL}/")
-            root_data = response.json()
-            print(f"    Total pages in graph: {root_data.get('total_pages', 'unknown')}")
-            return False
+    # Verify the target exists
+    response = requests.get(f"{BASE_URL}/api/{target}")
+    if response.status_code in [200, 500]:
+        print(f"  ✓ Target page {target} exists")
+        return True
     else:
-        print(f"  ✗ Could not decode target from seed")
+        print(f"  ✗ Target page {target} not found (status {response.status_code})")
         return False
 
-def test_core_seed_encoding():
-    """Test core seed encoding logic"""
-    print("Testing core seed encoding...")
+def test_core_seed_computation():
+    """Test core seed computation"""
+    print("Testing core seed computation...")
 
     # Get a core page
     response = requests.get(f"{BASE_URL}/api/test/core")
@@ -85,57 +62,55 @@ def test_core_seed_encoding():
     response = requests.get(f"{BASE_URL}/api/{core_page_id}")
     data = response.json()
 
-    hashseeds = data["hashseed"]
+    if "quadseeds" not in data or not data["quadseeds"]:
+        print(f"  Core page {core_page_id} has no quadseeds")
+        return True  # Not an error, page might not have links
+
+    quadseed = data["quadseeds"][0]
     print(f"  Core page {core_page_id}")
 
-    # Decode each seed
-    decoded_chars = []
-    for pos in ["1", "2", "3", "4"]:
-        seed = hashseeds[pos]
-        # Seed format: "core_<char>_<index>_<salt>"
-        parts = seed.split('_')
-        if len(parts) >= 4 and parts[0] == 'core':
-            char = parts[1]
-            decoded_chars.append(char)
-            print(f"    Position {pos}: {seed} -> '{char}'")
+    # Compute the 4-character result
+    target = ""
+    for i, seed in enumerate(quadseed):
+        result = seed
+        for j in range(CORE_PAGE_ITERATIONS_PER_CHAR):
+            result = hashlib.md5(f"{result}_{j}".encode()).hexdigest()
+        target += result[0]
+        print(f"    Position {i+1}: {seed} -> '{result[0]}'")
 
-    decoded_target = ''.join(decoded_chars)
-    print(f"  Decoded target: {decoded_target}")
+    print(f"  Computed target: {target}")
 
-    # Check if decoded target is valid
-    response = requests.get(f"{BASE_URL}/api/{decoded_target}")
+    # Verify the target exists
+    response = requests.get(f"{BASE_URL}/api/{target}")
     if response.status_code in [200, 500]:
-        print(f"  ✓ Decoded target {decoded_target} is a valid page")
+        print(f"  ✓ Target page {target} exists")
         return True
     else:
-        print(f"  ✗ Decoded target {decoded_target} not found (status {response.status_code})")
+        print(f"  ✗ Target page {target} not found (status {response.status_code})")
         return False
 
 def main():
     print("Quick Hashseed Test")
     print("=" * 50)
 
-    # Check server
+    # Check server is running
     try:
         requests.get(f"{BASE_URL}/", timeout=1)
     except:
-        print("Server not running! Start with: cd server && ./newserver.sh")
+        print("Server not running! Start with: docker compose up")
         exit(1)
 
     # Run tests
+    cpu_passed = test_cpu_seed_computation()
     print()
-    cpu_passed = test_cpu_seed_encoding()
-    print()
-    core_passed = test_core_seed_encoding()
+    core_passed = test_core_seed_computation()
 
     print()
     print("=" * 50)
     if cpu_passed and core_passed:
-        print("✓ Quick tests passed!")
-        print("\nNote: The actual implementation requires proper hashing.")
-        print("The seeds encode the target, but clients must do the CPU work.")
+        print("✓ All tests passed")
     else:
-        print("✗ Tests failed - check seed generation logic")
+        print("✗ Tests failed")
 
 if __name__ == "__main__":
     main()

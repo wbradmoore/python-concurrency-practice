@@ -55,12 +55,13 @@ def test_page_types():
             assert "links" in data, f"{page_type} should have links"
             assert isinstance(data["links"], list), f"{page_type} links should be list"
         elif page_type == "cpu":
-            assert "hashseed" in data, "CPU page should have hashseed"
-            assert isinstance(data["hashseed"], str), "CPU hashseed should be string"
+            assert "hashseeds" in data, "CPU page should have hashseeds"
+            assert isinstance(data["hashseeds"], list), "CPU hashseeds should be list"
         elif page_type == "core":
-            assert "hashseed" in data, "Core page should have hashseed"
-            assert isinstance(data["hashseed"], dict), "Core hashseed should be dict"
-            assert set(data["hashseed"].keys()) == {"1", "2", "3", "4"}, "Core should have keys 1-4"
+            assert "quadseeds" in data, "Core page should have quadseeds"
+            assert isinstance(data["quadseeds"], list), "Core quadseeds should be list"
+            if data["quadseeds"]:
+                assert all(isinstance(q, list) and len(q) == 4 for q in data["quadseeds"]), "Each quadseed should be list of 4"
 
         print(f"    ✓ {page_type} page structure correct")
 

@@ -143,24 +143,21 @@ class HashCacher:
         print(f"Each seed requires {self.cpu_iterations:,} hash iterations...")
 
         generated = 0
-        attempts = 0
-        max_attempts = additional_needed * 10
         start_time = time.time()
 
-        while generated < additional_needed and attempts < max_attempts:
-            attempts += 1
+        while generated < additional_needed:
             seed = self.generate_random_seed()
 
-            # Skip if we already have this seed
+            # Skip if we already have this seed (unlikely with 16-char random)
             if seed in self.cpu_seeds:
                 continue
 
-            if attempts % 10 == 1:  # Show progress
+            if generated % 10 == 0:  # Show progress
                 elapsed = time.time() - start_time
                 rate = generated / elapsed if elapsed > 0 else 0
                 eta = (additional_needed - generated) / rate if rate > 0 else 0
                 print(f"  Progress: {current_count + generated}/{needed} seeds "
-                      f"({attempts} attempts, {rate:.1f} seeds/sec, ETA: {eta:.0f}s)")
+                      f"({rate:.1f} seeds/sec, ETA: {eta:.0f}s)")
 
             # Generate the page ID for this seed
             page_id = self.hash_cpu_seed(seed)
@@ -201,26 +198,22 @@ class HashCacher:
         print(f"Each seed requires {self.core_iterations:,} hash iterations...")
 
         generated = 0
-        attempts = 0
-        max_attempts = additional_needed * 10
         start_time = time.time()
 
-        while generated < additional_needed and attempts < max_attempts:
-            attempts += 1
-
+        while generated < additional_needed:
             # Generate a tuple of 4 random seeds
             quad_seeds = tuple(self.generate_random_seed() for _ in range(4))
 
-            # Skip if we already have this quad
+            # Skip if we already have this quad (extremely unlikely)
             if quad_seeds in self.core_seeds:
                 continue
 
-            if attempts % 10 == 1:  # Show progress
+            if generated % 10 == 0:  # Show progress
                 elapsed = time.time() - start_time
                 rate = generated / elapsed if elapsed > 0 else 0
                 eta = (additional_needed - generated) / rate if rate > 0 else 0
                 print(f"  Progress: {current_count + generated}/{needed} seeds "
-                      f"({attempts} attempts, {rate:.1f} quads/sec, ETA: {eta:.0f}s)")
+                      f"({rate:.1f} quads/sec, ETA: {eta:.0f}s)")
 
             # Generate the 4-character result for this quad
             quad_result = self.hash_core_quad(quad_seeds)
