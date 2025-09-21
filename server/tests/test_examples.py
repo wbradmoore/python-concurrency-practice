@@ -23,7 +23,7 @@ def solve_cpu_hashseed(hashseed):
     iterations = 100000  # Reduced for testing
     for i in range(iterations):
         result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
-    return result[:4]
+    return result[:6]
 
 def solve_core_hashseed(hashseed, char_position):
     """Solve single hashseed for multi-core page"""
@@ -117,7 +117,7 @@ def test_core_page():
 
     # Parallel approach
     start_time = time.time()
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=6) as executor:
         futures = []
         for i, seed in enumerate(quadseed):
             futures.append(executor.submit(solve_core_hashseed, seed, i + 1))

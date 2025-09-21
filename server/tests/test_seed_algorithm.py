@@ -16,7 +16,7 @@ def hash_cpu_seed(seed):
     result = seed
     for i in range(CPU_PAGE_ITERATIONS):
         result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
-    return result[:4]  # First 4 chars are the target page ID
+    return result[:6]  # First 6 chars are the target page ID
 
 def hash_core_seed(seed):
     """Hash a core seed to get one character of the target"""

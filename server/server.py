@@ -34,7 +34,7 @@ def calculate_needed_seeds():
 
     # Each page has average links
     cpu_seeds_needed = cpu_pages * AVG_LINKS_PER_PAGE
-    # For core: we need quads (each quad is one page ID)
+    # For core: we need hexseeds (each hexseed is one page ID)
     core_seeds_needed = core_pages * AVG_LINKS_PER_PAGE
 
     # Add 10% buffer
@@ -50,19 +50,19 @@ def compute_seed_pools():
 
     # Use HashCacher to ensure we have enough seeds
     hash_cacher.ensure_cpu_seeds(cpu_needed, CPU_PAGE_ITERATIONS)
-    hash_cacher.ensure_core_seeds(core_needed, CORE_PAGE_ITERATIONS_PER_CHAR)
+    hash_cacher.ensure_core_char_coverage()
 
 def get_cpu_seeds_for_targets(target_page_ids):
     """Get CPU seeds that hash to the target page IDs"""
     return hash_cacher.get_cpu_seeds_for_targets(target_page_ids, USED_CPU_SEEDS)
 
 def get_core_seeds_for_targets(target_page_ids):
-    """Get core seed groups (4 seeds each) that hash to the target page IDs"""
+    """Get core seed groups (6 seeds each) that hash to the target page IDs"""
     return hash_cacher.get_core_seeds_for_targets(target_page_ids, USED_CORE_SEEDS)
 
 def generate_page_ids(count=TOTAL_PAGES):
     """Generate unique page IDs with configurable length"""
-    chars = string.ascii_lowercase + string.digits
+    chars = string.digits + "abcdef"
     page_ids = set()
 
     while len(page_ids) < count:
@@ -77,8 +77,9 @@ def assign_page_types(page_ids):
     cpu_page_ids_from_seeds = set(hash_cacher.cpu_seeds.values())
     core_page_ids_from_seeds = set()
 
-    # For core, get page IDs directly from the quad results
-    core_page_ids_from_seeds = set(hash_cacher.core_seeds.values())
+    # For core, we can generate page IDs from available character combinations
+    core_page_ids_from_seeds = set()
+    # We'll populate this after the graph is built since core pages link to arbitrary targets
 
     # Calculate exact counts for each page type
     core_count = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
@@ -135,8 +136,17 @@ core_pages_needed = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
 # Get page IDs from CPU seed pool (limit to what we need)
 cpu_page_ids = list(hash_cacher.cpu_seeds.values())[:cpu_pages_needed]
 
-# For core seeds, get page IDs directly from the quad results (limit to what we need)
-core_page_ids = list(hash_cacher.core_seeds.values())[:core_pages_needed]
+# For core seeds, we need to generate page IDs from the available character combinations
+# Since we have hex characters, we can create page IDs by combining them
+core_page_ids = []
+hex_chars = list(hash_cacher.core_seeds.keys())
+if len(hex_chars) >= 6:  # We need at least 6 characters to make 6-char page IDs
+    import itertools
+    # Generate combinations of 6 hex characters to create valid page IDs
+    for combo in itertools.product(hex_chars, repeat=6):
+        if len(core_page_ids) >= core_pages_needed:
+            break
+        core_page_ids.append(''.join(combo))
 
 # Generate additional random page IDs to reach TOTAL_PAGES
 existing_page_ids = set(cpu_page_ids + core_page_ids)
@@ -178,8 +188,18 @@ def build_graph():
     """Build an organic connected graph starting from a root page"""
     global GRAPH
 
-    # Get all page IDs that have quads in the cache (for core page linking)
-    available_quad_page_ids = set(hash_cacher.core_seeds.values())
+    # Get all page IDs that can be generated from available hex characters (for core page linking)
+    available_hex_chars = list(hash_cacher.core_seeds.keys())
+    available_hexseed_page_ids = set()
+    if len(available_hex_chars) >= 6:
+        import itertools
+        # Generate some page IDs that can be built from available characters
+        count = 0
+        for combo in itertools.product(available_hex_chars, repeat=6):
+            if count >= 100:  # Limit to reasonable number
+                break
+            available_hexseed_page_ids.add(''.join(combo))
+            count += 1
 
     # Initialize all pages with empty link lists
     for page in PAGES:
@@ -221,10 +241,10 @@ def build_graph():
         attempts += 1
         source_page = random.choice(PAGES)
 
-        # For core pages, prefer linking to pages that have quads in cache
+        # For core pages, prefer linking to pages that have hexseeds in cache
         if source_page["type"] == "core":
-            # Try to find a target that has a quad
-            possible_targets = [p for p in PAGES if p["page_id"] in available_quad_page_ids]
+            # Try to find a target that has a hexseed
+            possible_targets = [p for p in PAGES if p["page_id"] in available_hexseed_page_ids]
             if possible_targets:
                 target_page = random.choice(possible_targets)
             else:
@@ -329,7 +349,7 @@ def serve_page(page_id):
             page_data["hashseeds"] = []
         del page_data["links"]  # Remove links field
 
-    # For multi-core pages, use quadseeds list of lists instead of links
+    # For multi-core pages, use hexseeds list of lists instead of links
     elif page_type == "core":
         if link_page_ids:
             # Get pre-computed seed groups for these targets

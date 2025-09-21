@@ -25,8 +25,8 @@ class HashCacher:
 
     def __init__(self, cache_file: str = "hashcache.json"):
         self.cache_file = cache_file
-        self.cpu_seeds: Dict[str, str] = {}
-        self.core_seeds: Dict[str, str] = {}
+        self.cpu_seeds: Dict[str, str] = {}  # seed -> page_id mapping
+        self.core_seeds: Dict[str, list] = {}  # char -> list of seeds that hash to that char
         self.cpu_iterations = CPU_PAGE_ITERATIONS
         self.core_iterations = CORE_PAGE_ITERATIONS_PER_CHAR
         self.page_id_length = PAGE_ID_LENGTH
@@ -43,15 +43,18 @@ class HashCacher:
 
             self.cpu_seeds = cache.get("cpu_seeds", {})
 
-            # Convert core_seeds from string keys back to tuples
+            # Handle both old and new core_seeds format
             core_seeds_raw = cache.get("core_seeds", {})
-            self.core_seeds = {}
-            for key, value in core_seeds_raw.items():
-                if "|" in key:  # New format with tuple keys
-                    quad_seeds = tuple(key.split("|"))
-                    self.core_seeds[quad_seeds] = value
-                else:  # Old format with single seed keys - skip
-                    continue
+            if core_seeds_raw:
+                # Check if it's the new format (char -> list of seeds)
+                first_key = list(core_seeds_raw.keys())[0] if core_seeds_raw else None
+                if first_key and len(first_key) == 1:
+                    # New format: single char keys
+                    self.core_seeds = core_seeds_raw
+                else:
+                    # Old format: need to convert or clear
+                    print("Old core_seeds format detected, will regenerate")
+                    self.core_seeds = {}
 
             # Load iteration counts from cache if available
             self.cpu_iterations = cache.get("cpu_iterations", self.cpu_iterations)
@@ -67,21 +70,18 @@ class HashCacher:
 
     def save_cache(self) -> bool:
         """Save current cache to file. Returns True if saved successfully."""
-        # Convert core_seeds tuples to strings for JSON serialization
-        core_seeds_serializable = {}
-        for quad_seeds, quad_result in self.core_seeds.items():
-            key = "|".join(quad_seeds)  # Join tuple with pipe separator
-            core_seeds_serializable[key] = quad_result
+        # Count total core seeds
+        total_core_seeds = sum(len(seeds) for seeds in self.core_seeds.values())
 
         cache = {
             "cpu_seeds": self.cpu_seeds,
-            "core_seeds": core_seeds_serializable,
+            "core_seeds": self.core_seeds,
             "generated_at": time.time(),
             "cpu_iterations": self.cpu_iterations,
             "core_iterations": self.core_iterations,
             "page_id_length": self.page_id_length,
             "total_cpu_seeds": len(self.cpu_seeds),
-            "total_core_seeds": len(self.core_seeds)
+            "total_core_seeds": total_core_seeds
         }
 
         try:
@@ -91,7 +91,7 @@ class HashCacher:
                 json.dump(cache, f, indent=2)
             os.rename(temp_file, self.cache_file)
 
-            print(f"Saved cache: {len(self.cpu_seeds)} CPU seeds, {len(self.core_seeds)} core seeds")
+            print(f"Saved cache: {len(self.cpu_seeds)} CPU seeds, {total_core_seeds} core seeds")
             return True
 
         except Exception as e:
@@ -100,7 +100,7 @@ class HashCacher:
 
     def generate_random_seed(self) -> str:
         """Generate a random 16-character seed."""
-        chars = string.ascii_lowercase + string.digits
+        chars = string.digits + "abcdef"
         return ''.join(random.choices(chars, k=16))
 
     def hash_cpu_seed(self, seed: str) -> str:
@@ -110,27 +110,22 @@ class HashCacher:
             result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
         return result[:self.page_id_length]
 
-    def hash_core_quad(self, seeds: tuple) -> str:
-        """Hash a tuple of 4 core seeds to get 4 characters."""
-        result = ""
-        for seed in seeds:
-            seed_result = seed
-            for i in range(self.core_iterations):
-                seed_result = hashlib.md5(f"{seed_result}_{i}".encode()).hexdigest()
-            result += seed_result[0]
-        return result
+    def hash_core_seed(self, seed: str) -> str:
+        """Hash a core seed to get the first character."""
+        result = seed
+        for i in range(self.core_iterations):
+            result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+        return result[0]
 
     def ensure_cpu_seeds(self, needed: int, cpu_iterations: int = None) -> bool:
         """Ensure we have at least 'needed' CPU seeds. Generate more if necessary."""
         if cpu_iterations is not None:
-            # Check if iteration count changed
             if cpu_iterations != self.cpu_iterations:
                 print(f"CPU iteration count changed from {self.cpu_iterations:,} to {cpu_iterations:,}")
                 print("Clearing CPU cache to regenerate with new iteration count")
                 self.cpu_seeds.clear()
                 self.cpu_iterations = cpu_iterations
         else:
-            # Use config value
             self.cpu_iterations = CPU_PAGE_ITERATIONS
 
         current_count = len(self.cpu_seeds)
@@ -148,11 +143,11 @@ class HashCacher:
         while generated < additional_needed:
             seed = self.generate_random_seed()
 
-            # Skip if we already have this seed (unlikely with 16-char random)
+            # Skip if we already have this seed
             if seed in self.cpu_seeds:
                 continue
 
-            if generated % 10 == 0:  # Show progress
+            if generated % 10 == 0:
                 elapsed = time.time() - start_time
                 rate = generated / elapsed if elapsed > 0 else 0
                 eta = (additional_needed - generated) / rate if rate > 0 else 0
@@ -164,78 +159,101 @@ class HashCacher:
             self.cpu_seeds[seed] = page_id
             generated += 1
 
-            # Save periodically to prevent loss
+            # Save periodically
             if generated % 10 == 0:
                 self.save_cache()
 
-        # Final save
         self.save_cache()
 
         elapsed = time.time() - start_time
         print(f"Generated {generated} CPU seeds in {elapsed:.1f}s ({generated/elapsed:.2f} seeds/sec)")
-        return generated == additional_needed
+        return True
 
-    def ensure_core_seeds(self, needed: int, core_iterations: int = None) -> bool:
-        """Ensure we have at least 'needed' core seeds. Generate more if necessary."""
-        if core_iterations is not None:
-            # Check if iteration count changed
-            if core_iterations != self.core_iterations:
-                print(f"Core iteration count changed from {self.core_iterations:,} to {core_iterations:,}")
-                print("Clearing core cache to regenerate with new iteration count")
-                self.core_seeds.clear()
-                self.core_iterations = core_iterations
-        else:
-            # Use config value
-            self.core_iterations = CORE_PAGE_ITERATIONS_PER_CHAR
+    def ensure_core_char_coverage(self) -> bool:
+        """Ensure we have at least one seed for each possible hex character (0-9, a-f)."""
+        all_chars = string.digits + "abcdef"
 
-        current_count = len(self.core_seeds)
-        if current_count >= needed:
-            print(f"Sufficient core seeds: {current_count}/{needed}")
+        # Initialize core_seeds dict if needed
+        for char in all_chars:
+            if char not in self.core_seeds:
+                self.core_seeds[char] = []
+
+        # Check which characters need more seeds
+        chars_needing_seeds = []
+        for char in all_chars:
+            if len(self.core_seeds[char]) < CORE_SEEDS_PER_CHAR:
+                chars_needing_seeds.append(char)
+
+        if not chars_needing_seeds:
+            total_seeds = sum(len(seeds) for seeds in self.core_seeds.values())
+            print(f"All characters have {CORE_SEEDS_PER_CHAR} seeds each with {total_seeds} total core seeds")
             return True
 
-        additional_needed = needed - current_count
-        print(f"Generating {additional_needed} additional core seeds (have {current_count}/{needed})...")
-        print(f"Each seed requires {self.core_iterations:,} hash iterations...")
+        print(f"Characters needing more seeds: {len(chars_needing_seeds)}")
+        for char in chars_needing_seeds:
+            current_count = len(self.core_seeds[char])
+            needed = CORE_SEEDS_PER_CHAR - current_count
+            print(f"  '{char}': has {current_count}, needs {needed} more")
+        print(f"Generating core seeds (each requires {self.core_iterations:,} hash iterations)...")
 
-        generated = 0
         start_time = time.time()
+        generated = 0
+        attempts = 0
+        last_save_time = start_time
 
-        while generated < additional_needed:
-            # Generate a tuple of 4 random seeds
-            quad_seeds = tuple(self.generate_random_seed() for _ in range(4))
+        while chars_needing_seeds:
+            seed = self.generate_random_seed()
+            attempts += 1
 
-            # Skip if we already have this quad (extremely unlikely)
-            if quad_seeds in self.core_seeds:
-                continue
-
-            if generated % 10 == 0:  # Show progress
+            # Show progress
+            if attempts % 100 == 0:
                 elapsed = time.time() - start_time
                 rate = generated / elapsed if elapsed > 0 else 0
-                eta = (additional_needed - generated) / rate if rate > 0 else 0
-                print(f"  Progress: {current_count + generated}/{needed} seeds "
-                      f"({rate:.1f} quads/sec, ETA: {eta:.0f}s)")
+                chars_complete = 16 - len(chars_needing_seeds)
+                print(f"  Progress: {chars_complete}/16 chars have {CORE_SEEDS_PER_CHAR} seeds "
+                      f"({generated} seeds, {attempts} attempts, {rate:.1f} seeds/sec)")
 
-            # Generate the 4-character result for this quad
-            quad_result = self.hash_core_quad(quad_seeds)
-            self.core_seeds[quad_seeds] = quad_result
-            generated += 1
+            # Hash the seed to get its target character
+            target_char = self.hash_core_seed(seed)
 
-            # Save periodically to prevent loss
-            if generated % 10 == 0:
-                self.save_cache()
+            # Add to the appropriate list if it's a char that needs more seeds
+            if target_char in chars_needing_seeds:
+                self.core_seeds[target_char].append(seed)
+                generated += 1
+                current_count = len(self.core_seeds[target_char])
+                print(f"  Found seed for '{target_char}': {seed} (now has {current_count}/{CORE_SEEDS_PER_CHAR})")
 
-        # Final save
+                # Remove from needing list if it now has enough
+                if current_count >= CORE_SEEDS_PER_CHAR:
+                    chars_needing_seeds.remove(target_char)
+
+                # Save periodically
+                if time.time() - last_save_time > 10:
+                    self.save_cache()
+                    last_save_time = time.time()
+            else:
+                # Also store seeds for chars that have room (build up pools)
+                if len(self.core_seeds[target_char]) < CORE_SEEDS_PER_CHAR * 2:  # Allow up to 2x the required amount
+                    self.core_seeds[target_char].append(seed)
+                    generated += 1
+
         self.save_cache()
 
         elapsed = time.time() - start_time
-        print(f"Generated {generated} core seeds in {elapsed:.1f}s ({generated/elapsed:.2f} seeds/sec)")
-        return generated == additional_needed
+        total_seeds = sum(len(seeds) for seeds in self.core_seeds.values())
+        print(f"Generated {generated} core seeds in {elapsed:.1f}s")
+        print(f"All 16 hex characters now have at least {CORE_SEEDS_PER_CHAR} seeds each ({total_seeds} total seeds)")
+        return True
 
     def get_cache_info(self) -> Dict:
         """Get information about current cache state."""
+        total_core_seeds = sum(len(seeds) for seeds in self.core_seeds.values())
+        chars_covered = len([c for c in self.core_seeds if self.core_seeds[c]])
+
         return {
             "cpu_seeds": len(self.cpu_seeds),
-            "core_seeds": len(self.core_seeds),
+            "core_seeds": total_core_seeds,
+            "chars_covered": chars_covered,
             "cpu_iterations": self.cpu_iterations,
             "core_iterations": self.core_iterations,
             "cache_file": self.cache_file,
@@ -261,45 +279,49 @@ class HashCacher:
                         break
         return seeds
 
-    def get_core_seeds_for_targets(self, target_page_ids: list, used_quads: set = None) -> list:
-        """Get core seed groups (tuples of 4 seeds each) that hash to the target page IDs."""
-        if used_quads is None:
-            used_quads = set()
+    def get_core_seeds_for_targets(self, target_page_ids: list, used_seeds: set = None) -> list:
+        """Get hex-seed lists (lists of 6 seeds) that hash to the target page IDs."""
+        if used_seeds is None:
+            used_seeds = set()
 
-        seed_groups = []
+        hex_seed_lists = []
 
         for target in target_page_ids:
-            if len(target) < 4:
-                target = target.ljust(4, '0')
+            if len(target) < 6:
+                target = target.ljust(6, '0')
 
-            # Find a quad that produces this target
-            found_quad = False
-            for quad_seeds, quad_result in self.core_seeds.items():
-                if quad_result == target[:4] and quad_seeds not in used_quads:
-                    seed_groups.append(list(quad_seeds))
-                    used_quads.add(quad_seeds)
-                    found_quad = True
-                    break
+            # Build a hex-seed list for this target
+            hex_seeds = []
+            for char in target[:6]:
+                # Get an available seed for this character
+                if char in self.core_seeds and self.core_seeds[char]:
+                    # Find an unused seed
+                    for seed in self.core_seeds[char]:
+                        if seed not in used_seeds:
+                            hex_seeds.append(seed)
+                            used_seeds.add(seed)
+                            break
+                    else:
+                        # No unused seeds for this char, use any seed
+                        if self.core_seeds[char]:
+                            hex_seeds.append(self.core_seeds[char][0])
+                        else:
+                            break  # Can't build hex-seed list for this target
+                else:
+                    break  # No seeds for this character
 
-            if not found_quad:
-                # Couldn't find a quad for this target, skip it
-                continue
+            if len(hex_seeds) == 6:
+                hex_seed_lists.append(hex_seeds)
 
-        return seed_groups
+        return hex_seed_lists
 
     def calculate_needed_seeds(self) -> tuple:
         """Calculate how many seeds we need for CPU and core pages"""
-        cpu_pages = int(TOTAL_PAGES * CPU_PAGE_PROBABILITY)
-        core_pages = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
+        # Generate enough CPU seeds so every page could potentially be linked to from a CPU page
+        cpu_seeds_needed = TOTAL_PAGES
 
-        # Each page has average links
-        cpu_seeds_needed = cpu_pages * AVG_LINKS_PER_PAGE
-        # For core: we need quads (each quad is one page ID)
-        core_seeds_needed = core_pages * AVG_LINKS_PER_PAGE
-
-        # Add 10% buffer
-        cpu_seeds_needed = int(cpu_seeds_needed * 1.1)
-        core_seeds_needed = int(core_seeds_needed * 1.1)
+        # For core seeds, we just need coverage of all characters
+        core_seeds_needed = 16  # 0-9 (10) + a-f (6)
 
         return cpu_seeds_needed, core_seeds_needed
 
@@ -315,20 +337,21 @@ class HashCacher:
         print(f"  CORE_PAGE_ITERATIONS_PER_CHAR: {CORE_PAGE_ITERATIONS_PER_CHAR:,}")
         print()
 
-        # Calculate needed seeds
-        cpu_needed, core_needed = self.calculate_needed_seeds()
-        print(f"Calculated requirements:")
-        print(f"  CPU seeds needed: {cpu_needed:,}")
-        print(f"  Core seeds needed: {core_needed:,}")
+        cpu_seeds_needed, _ = self.calculate_needed_seeds()
+        print("Calculated requirements:")
+        print(f"  CPU seeds needed: {cpu_seeds_needed}")
+        print(f"  Core seeds needed: {CORE_SEEDS_PER_CHAR} seeds per hex character (16 chars × {CORE_SEEDS_PER_CHAR} = {16 * CORE_SEEDS_PER_CHAR} total)")
         print()
 
         # Load existing cache
         self.load_cache()
 
-        # Generate seeds
+        # Generate CPU and core seeds separately
         success = True
-        success &= self.ensure_cpu_seeds(cpu_needed)
-        success &= self.ensure_core_seeds(core_needed)
+        if not self.ensure_cpu_seeds(cpu_seeds_needed, CPU_PAGE_ITERATIONS):
+            success = False
+        if not self.ensure_core_char_coverage():
+            success = False
 
         if success:
             print(f"\n✓ Cache generation completed successfully!")

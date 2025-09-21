@@ -38,7 +38,7 @@ def test_cpu_seed_computation():
     result = seed
     for i in range(CPU_PAGE_ITERATIONS):
         result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
-    target = result[:4]
+    target = result[:6]
     print(f"  Computed target: {target}")
 
     # Verify the target exists
@@ -69,7 +69,7 @@ def test_core_seed_computation():
     quadseed = data["quadseeds"][0]
     print(f"  Core page {core_page_id}")
 
-    # Compute the 4-character result
+    # Compute the 6-character result
     target = ""
     for i, seed in enumerate(quadseed):
         result = seed

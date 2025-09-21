@@ -9,7 +9,7 @@ and performance characteristics.
 
 # Graph Structure
 TOTAL_PAGES = 100               # Total number of pages in the graph
-PAGE_ID_LENGTH = 4              # Length of each page ID (e.g., "a1b2")
+PAGE_ID_LENGTH = 6              # Length of each page ID (e.g., "a1b2c3")
 AVG_LINKS_PER_PAGE = 3          # Average number of outbound links per page
 
 # Page Types and Distribution
@@ -35,7 +35,8 @@ CPU_PAGE_ITERATIONS = 5000000  # Number of hash iterations for CPU work (5M iter
 
 # Multi-Core Configuration
 CORE_PAGE_ITERATIONS_PER_CHAR = 1250000  # Hash iterations per character (1.25M iterations)
-CORE_PAGE_CHARS = 4             # Number of characters to compute in parallel
+CORE_PAGE_CHARS = 6             # Number of characters to compute in parallel
+CORE_SEEDS_PER_CHAR = 2         # Number of seeds to generate per hex character
 
 
 # Server Configuration

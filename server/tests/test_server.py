@@ -61,7 +61,7 @@ def test_page_types():
             assert "quadseeds" in data, "Core page should have quadseeds"
             assert isinstance(data["quadseeds"], list), "Core quadseeds should be list"
             if data["quadseeds"]:
-                assert all(isinstance(q, list) and len(q) == 4 for q in data["quadseeds"]), "Each quadseed should be list of 4"
+                assert all(isinstance(q, list) and len(q) == 6 for q in data["quadseeds"]), "Each quadseed should be list of 6"
 
         print(f"    ✓ {page_type} page structure correct")
 

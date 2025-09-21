@@ -20,7 +20,7 @@ def hash_cpu_seed(seed):
     result = seed
     for i in range(CPU_PAGE_ITERATIONS):
         result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
-    return result[:4]  # First 4 chars are the target page ID
+    return result[:6]  # First 6 chars are the target page ID
 
 def hash_core_seed(seed):
     """Hash a core seed to get one character of the target"""
@@ -89,18 +89,18 @@ def test_core_hashseed():
         print("  ⚠ No quadseeds found")
         return True
 
-    quadseed = data["quadseeds"][0]
-    assert isinstance(quadseed, list) and len(quadseed) == 4, "Each quadseed should be list of 4"
+    hexseed = data["quadseeds"][0]
+    assert isinstance(hexseed, list) and len(hexseed) == 6, "Each hexseed should be list of 6"
 
-    hashseeds = {str(i+1): seed for i, seed in enumerate(quadseed)}
+    hashseeds = {str(i+1): seed for i, seed in enumerate(hexseed)}
     print(f"  Core page {core_page_id} has hashseed dict with {len(hashseeds)} seeds")
 
-    # Hash each seed in parallel to get the 4 characters
+    # Hash each seed in parallel to get the 6 characters
     print(f"  Hashing each seed {CORE_PAGE_ITERATIONS_PER_CHAR:,} times...")
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=6) as executor:
         futures = []
-        for pos in ["1", "2", "3", "4"]:
+        for pos in ["1", "2", "3", "4", "5", "6"]:
             seed = hashseeds[pos]
             futures.append(executor.submit(hash_core_seed, seed))
 
