@@ -60,27 +60,9 @@ def get_core_seeds_for_targets(target_page_ids):
     """Get core seed groups (6 seeds each) that hash to the target page IDs"""
     return hash_cacher.get_core_seeds_for_targets(target_page_ids, USED_CORE_SEEDS)
 
-def generate_page_ids(count=TOTAL_PAGES):
-    """Generate unique page IDs with configurable length"""
-    chars = string.digits + "abcdef"
-    page_ids = set()
-
-    while len(page_ids) < count:
-        page_id = ''.join(random.choices(chars, k=PAGE_ID_LENGTH))
-        page_ids.add(page_id)
-
-    return list(page_ids)
 
 def assign_page_types(page_ids):
     """Assign page types to page IDs with exact percentages"""
-    # Get page IDs that came from seed pools
-    cpu_page_ids_from_seeds = set(hash_cacher.cpu_seeds.values())
-    core_page_ids_from_seeds = set()
-
-    # For core, we can generate page IDs from available character combinations
-    core_page_ids_from_seeds = set()
-    # We'll populate this after the graph is built since core pages link to arbitrary targets
-
     # Calculate exact counts for each page type
     core_count = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
     cpu_count = int(TOTAL_PAGES * CPU_PAGE_PROBABILITY)
@@ -88,35 +70,56 @@ def assign_page_types(page_ids):
     delay_count = int(TOTAL_PAGES * DELAY_PAGE_PROBABILITY)
     regular_count = TOTAL_PAGES - core_count - cpu_count - failure_count - delay_count
 
-    # Assign types to page IDs
+    # Shuffle page IDs to randomize type assignment
+    import random
+    shuffled_ids = page_ids.copy()
+    random.shuffle(shuffled_ids)
+
+    # Assign types to page IDs in order
     pages = []
-    assigned_cpu = 0
-    assigned_core = 0
-    assigned_failure = 0
-    assigned_delay = 0
 
-    for page_id in page_ids:
-        # Assign page types based on seed pools first
-        if page_id in cpu_page_ids_from_seeds and assigned_cpu < cpu_count:
-            page_type = "cpu"
-            assigned_cpu += 1
-        elif page_id in core_page_ids_from_seeds and assigned_core < core_count:
-            page_type = "core"
-            assigned_core += 1
-        # For remaining pages, assign other types randomly
-        elif assigned_failure < failure_count:
-            page_type = "failure"
-            assigned_failure += 1
-        elif assigned_delay < delay_count:
-            page_type = "delay"
-            assigned_delay += 1
-        else:
-            page_type = "regular"
-
+    # Assign CPU pages first
+    for i in range(cpu_count):
         pages.append({
-            "page_id": page_id,
-            "type": page_type,
-            "url": f"/api/{page_id}"
+            "page_id": shuffled_ids[i],
+            "type": "cpu",
+            "url": f"/api/{shuffled_ids[i]}"
+        })
+
+    # Then core pages
+    offset = cpu_count
+    for i in range(core_count):
+        pages.append({
+            "page_id": shuffled_ids[offset + i],
+            "type": "core",
+            "url": f"/api/{shuffled_ids[offset + i]}"
+        })
+
+    # Then failure pages
+    offset += core_count
+    for i in range(failure_count):
+        pages.append({
+            "page_id": shuffled_ids[offset + i],
+            "type": "failure",
+            "url": f"/api/{shuffled_ids[offset + i]}"
+        })
+
+    # Then delay pages
+    offset += failure_count
+    for i in range(delay_count):
+        pages.append({
+            "page_id": shuffled_ids[offset + i],
+            "type": "delay",
+            "url": f"/api/{shuffled_ids[offset + i]}"
+        })
+
+    # Finally regular pages
+    offset += delay_count
+    for i in range(regular_count):
+        pages.append({
+            "page_id": shuffled_ids[offset + i],
+            "type": "regular",
+            "url": f"/api/{shuffled_ids[offset + i]}"
         })
 
     return pages
@@ -128,41 +131,17 @@ hash_cacher.load_cache()
 print("Pre-computing hashseed pools...")
 compute_seed_pools()
 
-print("Collecting page IDs from seed pools...")
-# Calculate how many of each type we need
-cpu_pages_needed = int(TOTAL_PAGES * CPU_PAGE_PROBABILITY)
-core_pages_needed = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
+print("Collecting ALL page IDs from hashcache...")
+# ALL page IDs come from the hashcache cpu_seeds values
+# This ensures every page can be linked to from CPU pages
+PAGE_IDS = list(hash_cacher.cpu_seeds.values())[:TOTAL_PAGES]
 
-# Get page IDs from CPU seed pool (limit to what we need)
-cpu_page_ids = list(hash_cacher.cpu_seeds.values())[:cpu_pages_needed]
+if len(PAGE_IDS) < TOTAL_PAGES:
+    print(f"ERROR: Not enough page IDs in hashcache! Have {len(PAGE_IDS)}, need {TOTAL_PAGES}")
+    print("Please regenerate hashcache with at least TOTAL_PAGES cpu_seeds")
+    exit(1)
 
-# For core seeds, we need to generate page IDs from the available character combinations
-# Since we have hex characters, we can create page IDs by combining them
-core_page_ids = []
-hex_chars = list(hash_cacher.core_seeds.keys())
-if len(hex_chars) >= 6:  # We need at least 6 characters to make 6-char page IDs
-    import itertools
-    # Generate combinations of 6 hex characters to create valid page IDs
-    for combo in itertools.product(hex_chars, repeat=6):
-        if len(core_page_ids) >= core_pages_needed:
-            break
-        core_page_ids.append(''.join(combo))
-
-# Generate additional random page IDs to reach TOTAL_PAGES
-existing_page_ids = set(cpu_page_ids + core_page_ids)
-print(f"Generated {len(cpu_page_ids)} CPU page IDs and {len(core_page_ids)} core page IDs")
-
-# Fill remaining pages with random IDs
-additional_needed = TOTAL_PAGES - len(existing_page_ids)
-if additional_needed > 0:
-    print(f"Generating {additional_needed} additional random page IDs...")
-    additional_ids = generate_page_ids(additional_needed)
-    # Make sure they don't conflict with seed-generated IDs
-    while any(pid in existing_page_ids for pid in additional_ids):
-        additional_ids = generate_page_ids(additional_needed)
-    PAGE_IDS = list(existing_page_ids) + additional_ids
-else:
-    PAGE_IDS = list(existing_page_ids)
+print(f"Using {len(PAGE_IDS)} page IDs from hashcache")
 
 print("Assigning page types...")
 PAGES = assign_page_types(PAGE_IDS)
@@ -176,9 +155,6 @@ def get_page_by_id(page_id):
             return page
     return None
 
-def get_regular_pages():
-    """Get all regular (non-delay) pages"""
-    return [p for p in PAGES if p["type"] == "regular"]
 
 def choose_target_page():
     """Choose a target page randomly from all pages"""
@@ -187,19 +163,6 @@ def choose_target_page():
 def build_graph():
     """Build an organic connected graph starting from a root page"""
     global GRAPH
-
-    # Get all page IDs that can be generated from available hex characters (for core page linking)
-    available_hex_chars = list(hash_cacher.core_seeds.keys())
-    available_hexseed_page_ids = set()
-    if len(available_hex_chars) >= 6:
-        import itertools
-        # Generate some page IDs that can be built from available characters
-        count = 0
-        for combo in itertools.product(available_hex_chars, repeat=6):
-            if count >= 100:  # Limit to reasonable number
-                break
-            available_hexseed_page_ids.add(''.join(combo))
-            count += 1
 
     # Initialize all pages with empty link lists
     for page in PAGES:
@@ -241,16 +204,8 @@ def build_graph():
         attempts += 1
         source_page = random.choice(PAGES)
 
-        # For core pages, prefer linking to pages that have hexseeds in cache
-        if source_page["type"] == "core":
-            # Try to find a target that has a hexseed
-            possible_targets = [p for p in PAGES if p["page_id"] in available_hexseed_page_ids]
-            if possible_targets:
-                target_page = random.choice(possible_targets)
-            else:
-                target_page = choose_target_page()
-        else:
-            target_page = choose_target_page()  # Random selection for non-core pages
+        # All pages can be linked to since all page IDs come from hashcache
+        target_page = choose_target_page()
 
         source_id = source_page["page_id"]
         target_url = target_page["url"]

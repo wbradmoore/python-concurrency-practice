@@ -88,7 +88,7 @@ data = requests.get("http://localhost:5000/api/p3q4").json()
 result = data["hashseeds"][0]  # Get first hashseed
 for i in range(5000000):
     result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
-target_page_id = result[:4]  # First 4 characters of final hash
+target_page_id = result[:6]  # First 6 characters of final hash
 new_urls = [f"http://localhost:5000/api/{target_page_id}"]
 ```
 
@@ -98,7 +98,7 @@ Pages requiring parallel CPU work. Shows benefits of multi-core processing.
 ```python
 data = requests.get("http://localhost:5000/api/r5s6").json()
 target_chars = []
-for seed in data["quadseeds"][0]:  # Get first quadseed
+for seed in data["quadseeds"][0]:  # Get first hexseed group (still called quadseeds for compatibility)
     result = seed
     for i in range(1250000):
         result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()

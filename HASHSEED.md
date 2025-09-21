@@ -5,16 +5,16 @@
 1. Get CPU page with `hashseeds` list
 2. Pick any seed from the list
 3. Set result = seed
-4. Loop 50,000,000 times: result = md5(result + "_" + i).hexdigest()
-5. Extract first 4 chars of final result as page_id
+4. Loop 5,000,000 times: result = md5(result + "_" + i).hexdigest()
+5. Extract first 6 chars of final result as page_id
 6. Navigate to /api/{page_id}
 
 ## Server Workflow (How server decides on hashseeds)
 
 ### Pre-computation Phase (Server Startup)
 1. Calculate total hashseeds needed: `(CPU_pages × AVG_LINKS_PER_PAGE) × 1.1` buffer
-2. Generate random 16-character seeds using `[a-z0-9]`
-3. For each seed: hash it 50,000,000 times to get resulting page_id
+2. Generate random 16-character seeds using hex chars `[0-9a-f]`
+3. For each seed: hash it 5,000,000 times to get resulting page_id
 4. Store seed→page_id mappings in `CPU_SEED_POOL`
 5. Use page_ids from seed pool as actual graph page IDs
 6. Assign page types ensuring seed-generated pages become CPU pages
@@ -26,7 +26,7 @@
 10. Client must perform CPU work to discover actual valid page_ids
 
 ### Key Implementation Details
-- **Iteration Count**: 50,000,000 iterations (~5 seconds of CPU work)
-- **Page ID Generation**: Graph uses page IDs produced by seed hashing, not random IDs
+- **Iteration Count**: 5,000,000 iterations (configurable CPU work)
+- **Page ID Generation**: ALL page IDs come from hashcache cpu_seeds values (6-char hex)
 - **Type Assignment**: Pages from seed pools are guaranteed to get correct types
 - **Link Filtering**: CPU pages only provide seeds for targets they can actually produce
