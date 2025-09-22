@@ -21,16 +21,16 @@ def solve_cpu_hashseed(hashseed):
     """Solve CPU hashseed to extract target page ID"""
     result = hashseed
     iterations = 100000  # Reduced for testing
-    for i in range(iterations):
-        result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+    for _ in range(iterations):
+        result = hashlib.md5(result.encode()).hexdigest()
     return result[:6]
 
 def solve_core_hashseed(hashseed, char_position):
     """Solve single hashseed for multi-core page"""
     result = hashseed
     iterations = 100000  # Reduced for testing
-    for i in range(iterations):
-        result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+    for _ in range(iterations):
+        result = hashlib.md5(result.encode()).hexdigest()
     return char_position, result[0]
 
 def test_cpu_page():

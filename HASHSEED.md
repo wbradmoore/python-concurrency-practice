@@ -5,7 +5,7 @@
 1. Get CPU page with `hashseeds` list
 2. Pick any seed from the list
 3. Set result = seed
-4. Loop 5,000,000 times: result = md5(result + "_" + i).hexdigest()
+4. Loop 5,000,000 times: result = md5(result).hexdigest()
 5. Extract first 6 chars of final result as page_id
 6. Navigate to /api/{page_id}
 

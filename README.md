@@ -86,8 +86,8 @@ Pages requiring CPU-intensive work to extract links. Good for testing CPU vs I/O
 ```python
 data = requests.get("http://localhost:5000/api/p3q4").json()
 result = data["hashseeds"][0]  # Get first hashseed
-for i in range(5000000):
-    result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+for _ in range(5000000):
+    result = hashlib.md5(result.encode()).hexdigest()
 target_page_id = result[:6]  # First 6 characters of final hash
 new_urls = [f"http://localhost:5000/api/{target_page_id}"]
 ```
@@ -100,8 +100,8 @@ data = requests.get("http://localhost:5000/api/r5s6").json()
 target_chars = []
 for seed in data["quadseeds"][0]:  # Get first hexseed group (still called quadseeds for compatibility)
     result = seed
-    for i in range(1250000):
-        result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+    for _ in range(1250000):
+        result = hashlib.md5(result.encode()).hexdigest()
     target_chars.append(result[0])  # First character of final hash
 target_page_id = "".join(target_chars)
 new_urls = [f"http://localhost:5000/api/{target_page_id}"]

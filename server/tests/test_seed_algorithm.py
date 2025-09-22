@@ -14,15 +14,15 @@ from config import CPU_PAGE_ITERATIONS, CORE_PAGE_ITERATIONS_PER_CHAR
 def hash_cpu_seed(seed):
     """Hash a CPU seed the required number of times to get target page ID"""
     result = seed
-    for i in range(CPU_PAGE_ITERATIONS):
-        result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+    for _ in range(CPU_PAGE_ITERATIONS):
+        result = hashlib.md5(result.encode()).hexdigest()
     return result[:6]  # First 6 chars are the target page ID
 
 def hash_core_seed(seed):
     """Hash a core seed to get one character of the target"""
     result = seed
-    for i in range(CORE_PAGE_ITERATIONS_PER_CHAR):
-        result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+    for _ in range(CORE_PAGE_ITERATIONS_PER_CHAR):
+        result = hashlib.md5(result.encode()).hexdigest()
     return result[0]  # First char is the target character
 
 def test_algorithm():

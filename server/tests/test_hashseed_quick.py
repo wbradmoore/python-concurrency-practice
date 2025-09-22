@@ -36,8 +36,8 @@ def test_cpu_seed_computation():
 
     # Compute the target
     result = seed
-    for i in range(CPU_PAGE_ITERATIONS):
-        result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+    for _ in range(CPU_PAGE_ITERATIONS):
+        result = hashlib.md5(result.encode()).hexdigest()
     target = result[:6]
     print(f"  Computed target: {target}")
 
@@ -73,8 +73,8 @@ def test_core_seed_computation():
     target = ""
     for i, seed in enumerate(quadseed):
         result = seed
-        for j in range(CORE_PAGE_ITERATIONS_PER_CHAR):
-            result = hashlib.md5(f"{result}_{j}".encode()).hexdigest()
+        for _ in range(CORE_PAGE_ITERATIONS_PER_CHAR):
+            result = hashlib.md5(result.encode()).hexdigest()
         target += result[0]
         print(f"    Position {i+1}: {seed} -> '{result[0]}'")
 

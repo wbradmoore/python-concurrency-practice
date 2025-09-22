@@ -17,6 +17,7 @@ import random
 import string
 import time
 from typing import Dict
+
 from config import *
 
 
@@ -106,15 +107,15 @@ class HashCacher:
     def hash_cpu_seed(self, seed: str) -> str:
         """Hash a CPU seed the required number of times to get page ID."""
         result = seed
-        for i in range(self.cpu_iterations):
-            result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+        for _ in range(self.cpu_iterations):
+            result = hashlib.md5(result.encode()).hexdigest()
         return result[:self.page_id_length]
 
     def hash_core_seed(self, seed: str) -> str:
         """Hash a core seed to get the first character."""
         result = seed
-        for i in range(self.core_iterations):
-            result = hashlib.md5(f"{result}_{i}".encode()).hexdigest()
+        for _ in range(self.core_iterations):
+            result = hashlib.md5(result.encode()).hexdigest()
         return result[0]
 
     def ensure_cpu_seeds(self, needed: int, cpu_iterations: int = None) -> bool:
@@ -293,22 +294,7 @@ class HashCacher:
             # Build a hex-seed list for this target
             hex_seeds = []
             for char in target[:6]:
-                # Get an available seed for this character
-                if char in self.core_seeds and self.core_seeds[char]:
-                    # Find an unused seed
-                    for seed in self.core_seeds[char]:
-                        if seed not in used_seeds:
-                            hex_seeds.append(seed)
-                            used_seeds.add(seed)
-                            break
-                    else:
-                        # No unused seeds for this char, use any seed
-                        if self.core_seeds[char]:
-                            hex_seeds.append(self.core_seeds[char][0])
-                        else:
-                            break  # Can't build hex-seed list for this target
-                else:
-                    break  # No seeds for this character
+                hex_seeds.append(random.choice(self.core_seeds[char]))
 
             if len(hex_seeds) == 6:
                 hex_seed_lists.append(hex_seeds)
@@ -387,4 +373,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()    main()    main()
