@@ -281,22 +281,22 @@ class HashCacher:
         return seeds
 
     def get_core_seeds_for_targets(self, target_page_ids: list, used_seeds: set = None) -> list:
-        """Get hex-seed lists (lists of 6 seeds) that hash to the target page IDs."""
+        """Get hex-seed lists (lists of PAGE_ID_LENGTH seeds) that hash to the target page IDs."""
         if used_seeds is None:
             used_seeds = set()
 
         hex_seed_lists = []
 
         for target in target_page_ids:
-            if len(target) < 6:
-                target = target.ljust(6, '0')
+            if len(target) < PAGE_ID_LENGTH:
+                target = target.ljust(PAGE_ID_LENGTH, '0')
 
             # Build a hex-seed list for this target
             hex_seeds = []
-            for char in target[:6]:
+            for char in target[:PAGE_ID_LENGTH]:
                 hex_seeds.append(random.choice(self.core_seeds[char]))
 
-            if len(hex_seeds) == 6:
+            if len(hex_seeds) == PAGE_ID_LENGTH:
                 hex_seed_lists.append(hex_seeds)
 
         return hex_seed_lists
@@ -362,4 +362,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()    main()    main()
