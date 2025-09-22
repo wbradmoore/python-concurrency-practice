@@ -301,16 +301,6 @@ class HashCacher:
 
         return hex_seed_lists
 
-    def calculate_needed_seeds(self) -> tuple:
-        """Calculate how many seeds we need for CPU and core pages"""
-        # Generate enough CPU seeds so every page could potentially be linked to from a CPU page
-        cpu_seeds_needed = TOTAL_PAGES
-
-        # For core seeds, we just need coverage of all characters
-        core_seeds_needed = 16  # 0-9 (10) + a-f (6)
-
-        return cpu_seeds_needed, core_seeds_needed
-
     def generate_cache(self) -> bool:
         """Generate cache with seeds needed for current configuration"""
         print("HashCacher - Generating cache based on config.py settings")
@@ -323,9 +313,8 @@ class HashCacher:
         print(f"  CORE_PAGE_ITERATIONS_PER_CHAR: {CORE_PAGE_ITERATIONS_PER_CHAR:,}")
         print()
 
-        cpu_seeds_needed, _ = self.calculate_needed_seeds()
         print("Calculated requirements:")
-        print(f"  CPU seeds needed: {cpu_seeds_needed}")
+        print(f"  CPU seeds needed: {TOTAL_PAGES}")
         print(f"  Core seeds needed: {CORE_SEEDS_PER_CHAR} seeds per hex character (16 chars × {CORE_SEEDS_PER_CHAR} = {16 * CORE_SEEDS_PER_CHAR} total)")
         print()
 
@@ -334,7 +323,7 @@ class HashCacher:
 
         # Generate CPU and core seeds separately
         success = True
-        if not self.ensure_cpu_seeds(cpu_seeds_needed, CPU_PAGE_ITERATIONS):
+        if not self.ensure_cpu_seeds(TOTAL_PAGES, CPU_PAGE_ITERATIONS):
             success = False
         if not self.ensure_core_char_coverage():
             success = False
@@ -373,4 +362,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()    main()    main()
+    main()

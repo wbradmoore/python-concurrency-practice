@@ -27,29 +27,10 @@ hash_cacher = HashCacher("/app/hashcache.json")
 USED_CPU_SEEDS = set()
 USED_CORE_SEEDS = set()
 
-def calculate_needed_seeds():
-    """Calculate how many seeds we need for CPU and core pages"""
-    cpu_pages = int(TOTAL_PAGES * CPU_PAGE_PROBABILITY)
-    core_pages = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
-
-    # Each page has average links
-    cpu_seeds_needed = cpu_pages * AVG_LINKS_PER_PAGE
-    # For core: we need hexseeds (each hexseed is one page ID)
-    core_seeds_needed = core_pages * AVG_LINKS_PER_PAGE
-
-    # Add 10% buffer
-    cpu_seeds_needed = int(cpu_seeds_needed * 1.1)
-    core_seeds_needed = int(core_seeds_needed * 1.1)
-
-    return cpu_seeds_needed, core_seeds_needed
-
-
 def compute_seed_pools():
     """Ensure we have enough seeds for CPU and core pages using HashCacher"""
-    cpu_needed, core_needed = calculate_needed_seeds()
-
     # Use HashCacher to ensure we have enough seeds
-    hash_cacher.ensure_cpu_seeds(cpu_needed, CPU_PAGE_ITERATIONS)
+    hash_cacher.ensure_cpu_seeds(TOTAL_PAGES, CPU_PAGE_ITERATIONS)
     hash_cacher.ensure_core_char_coverage()
 
 def get_cpu_seeds_for_targets(target_page_ids):
