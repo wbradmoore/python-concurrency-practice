@@ -8,7 +8,9 @@
 4. assign page types to the hashcache page IDs:
     - Distribute types (cpu, core, regular, delay, failure) according to configured probabilities
 5. build the graph by creating links:
-    - Start with a tree structure where each new page has one incoming link
+    - Start with the first page (entry point from /api/)
+    - Ensure the first page always gets at least one outgoing link (guarantees reachability)
+    - Build a tree structure where each remaining page has one incoming link
     - Add additional random edges until average links per page is reached
 6. handle special link types:
     - CPU pages: store hashseeds (keys from hashcache) that hash to target page IDs

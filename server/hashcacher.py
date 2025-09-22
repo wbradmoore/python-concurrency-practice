@@ -270,13 +270,25 @@ class HashCacher:
         available_targets = set(self.cpu_seeds.values())
 
         for target in target_page_ids:
-            # Only provide seeds for targets we actually have seeds for
-            if target in available_targets:
-                # Find an unused seed that maps to this target
+            # Every target should have available seeds since all page IDs come from hashcache
+            if target not in available_targets:
+                raise ValueError(f"No CPU seed available for target {target} - this should never happen!")
+
+            # Find an unused seed that maps to this target
+            found_seed = False
+            for seed, page_id in self.cpu_seeds.items():
+                if page_id == target and seed not in used_seeds:
+                    seeds.append(seed)
+                    used_seeds.add(seed)
+                    found_seed = True
+                    break
+
+            if not found_seed:
+                # This means all seeds for this target are already used
+                # For now, reuse the first available seed (could be improved with better seed management)
                 for seed, page_id in self.cpu_seeds.items():
-                    if page_id == target and seed not in used_seeds:
+                    if page_id == target:
                         seeds.append(seed)
-                        used_seeds.add(seed)
                         break
         return seeds
 
@@ -362,4 +374,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()    main()    main()
+    main()

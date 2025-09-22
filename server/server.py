@@ -160,7 +160,13 @@ def build_graph():
     pages_in_tree = [PAGES[0]]  # Start with first page
     pages_not_added = PAGES[1:]  # All other pages
 
-    # Build tree structure: add each new page with one link from an existing page
+    # Ensure the first page (entry point from /api/) always gets at least one outgoing link
+    if pages_not_added:
+        first_target = pages_not_added.pop(0)
+        GRAPH[PAGES[0]["page_id"]]["links"].append(first_target["url"])
+        pages_in_tree.append(first_target)
+
+    # Build tree structure: add each remaining page with one link from an existing page
     while pages_not_added:
         # Pick a random page already in the tree to link from
         source_page = random.choice(pages_in_tree)
@@ -280,9 +286,11 @@ def serve_page(page_id):
             # Get pre-computed seeds for these targets
             seeds = get_cpu_seeds_for_targets(link_page_ids)
             page_data["hashseeds"] = seeds
+            page_data["link_count"] = len(seeds)  # Update count to reflect actual seeds
         else:
             # No links, empty list
             page_data["hashseeds"] = []
+            page_data["link_count"] = 0
         del page_data["links"]  # Remove links field
 
     # For multi-core pages, use hexseeds list of lists instead of links
@@ -291,14 +299,17 @@ def serve_page(page_id):
             # Get pre-computed seed groups for these targets
             seed_groups = get_core_seeds_for_targets(link_page_ids)
             page_data["quadseeds"] = seed_groups
+            page_data["link_count"] = len(seed_groups)  # Update count to reflect actual seed groups
         else:
             # No links, empty list
             page_data["quadseeds"] = []
+            page_data["link_count"] = 0
         del page_data["links"]  # Remove links field
 
     # For regular/delay/failure pages, keep links as page IDs
     else:
         page_data["links"] = link_page_ids
+        page_data["link_count"] = len(link_page_ids)  # Update count to reflect actual links
 
     return jsonify(page_data)
 
