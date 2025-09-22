@@ -3,15 +3,17 @@
 Test that CPU and core page hashseeds deterministically produce valid page IDs.
 """
 
-import requests
 import hashlib
-import sys
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
+
+import requests
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import SERVER_PORT, CPU_PAGE_ITERATIONS, CORE_PAGE_ITERATIONS_PER_CHAR
+from config import (CORE_PAGE_ITERATIONS_PER_CHAR, CPU_PAGE_ITERATIONS,
+                    SERVER_PORT)
 
 BASE_URL = f"http://localhost:{SERVER_PORT}"
 
@@ -68,12 +70,12 @@ def find_cpu_page_with_links():
     return None, None
 
 def find_core_page_with_links():
-    """Find a core page that has quadseeds"""
+    """Find a core page that has multiseeds"""
     # Try the test/core endpoint first
     response = requests.get(f"{BASE_URL}/api/test/core", allow_redirects=True)
     if response.status_code == 200:
         data = response.json()
-        if data.get("page_type") == "core" and data.get("quadseeds") and len(data["quadseeds"]) > 0:
+        if data.get("page_type") == "core" and data.get("multiseeds") and len(data["multiseeds"]) > 0:
             return data["page_id"], data
 
     # If that didn't work, search through pages
@@ -96,7 +98,7 @@ def find_core_page_with_links():
 
         data = response.json()
 
-        if data.get("page_type") == "core" and data.get("quadseeds") and len(data["quadseeds"]) > 0:
+        if data.get("page_type") == "core" and data.get("multiseeds") and len(data["multiseeds"]) > 0:
             return page_id, data
 
         # Add linked pages to search
@@ -143,22 +145,22 @@ def test_cpu_hashseed():
         return False
 
 def test_core_hashseed():
-    """Test that core quadseeds produce valid page IDs"""
-    print("Testing core quadseed validation...")
+    """Test that core multiseeds produce valid page IDs"""
+    print("Testing core multiseed validation...")
 
-    # Find a core page with quadseeds
+    # Find a core page with multiseeds
     core_page_id, data = find_core_page_with_links()
 
     if not core_page_id:
-        print("  ⚠ No core pages with quadseeds found")
+        print("  ⚠ No core pages with multiseeds found")
         return True  # Not a failure, just no pages to test
 
-    quadseeds = data["quadseeds"]
-    print(f"  Core page {core_page_id} has {len(quadseeds)} quadseeds")
+    multiseeds = data["multiseeds"]
+    print(f"  Core page {core_page_id} has {len(multiseeds)} multiseeds")
 
-    # Test the first quadseed group
-    quad = quadseeds[0]
-    print(f"  Testing quadseed group: {quad}")
+    # Test the first multiseed group
+    quad = multiseeds[0]
+    print(f"  Testing multiseed group: {quad}")
 
     # Hash each seed in parallel to get the 6 characters
     print(f"  Hashing each seed {CORE_PAGE_ITERATIONS_PER_CHAR:,} times...")
@@ -229,4 +231,6 @@ def main():
         exit(1)
 
 if __name__ == "__main__":
+    main()if __name__ == "__main__":
+    main()if __name__ == "__main__":
     main()

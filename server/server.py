@@ -298,11 +298,11 @@ def serve_page(page_id):
         if link_page_ids:
             # Get pre-computed seed groups for these targets
             seed_groups = get_core_seeds_for_targets(link_page_ids)
-            page_data["quadseeds"] = seed_groups
+            page_data["multiseeds"] = seed_groups
             page_data["link_count"] = len(seed_groups)  # Update count to reflect actual seed groups
         else:
             # No links, empty list
-            page_data["quadseeds"] = []
+            page_data["multiseeds"] = []
             page_data["link_count"] = 0
         del page_data["links"]  # Remove links field
 

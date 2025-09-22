@@ -2,7 +2,7 @@
 
 ## Client Workflow (How to get a link from hexseeds)
 
-1. Get core page with `quadseeds` list (contains 6-seed groups, kept as "quadseeds" for compatibility)
+1. Get core page with `multiseeds` list (contains 6-seed groups, kept as "multiseeds" for compatibility)
 2. Pick any 6-seed group [seed1, seed2, seed3, seed4, seed5, seed6]
 3. Process all 6 seeds in parallel:
 4.   Thread 1: hash seed1 1,250,000 times, take first char
@@ -38,4 +38,4 @@
 - **Page ID Formation**: Combine 6 characters to form valid 6-char hex page IDs
 - **Parallel Advantage**: Sequential processing takes 6× longer than parallel
 - **Seed Distribution**: Configurable CORE_SEEDS_PER_CHAR (default 2) per character
-- **Compatibility**: Field still called "quadseeds" in API for backwards compatibility
+- **Compatibility**: Field still called "multiseeds" in API for backwards compatibility

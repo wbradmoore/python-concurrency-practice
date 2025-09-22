@@ -3,14 +3,16 @@
 Test server functionality: page types, connectivity, basic performance
 """
 
-import requests
-import time
-import sys
 import os
+import sys
+import time
+
+import requests
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import SERVER_PORT, REGULAR_PAGE_DELAY, DELAY_PAGE_DELAY, FAILURE_PAGE_ERROR_RATE
+from config import (DELAY_PAGE_DELAY, FAILURE_PAGE_ERROR_RATE,
+                    REGULAR_PAGE_DELAY, SERVER_PORT)
 
 BASE_URL = f"http://localhost:{SERVER_PORT}"
 
@@ -58,10 +60,10 @@ def test_page_types():
             assert "hashseeds" in data, "CPU page should have hashseeds"
             assert isinstance(data["hashseeds"], list), "CPU hashseeds should be list"
         elif page_type == "core":
-            assert "quadseeds" in data, "Core page should have quadseeds"
-            assert isinstance(data["quadseeds"], list), "Core quadseeds should be list"
-            if data["quadseeds"]:
-                assert all(isinstance(q, list) and len(q) == 6 for q in data["quadseeds"]), "Each quadseed should be list of 6"
+            assert "multiseeds" in data, "Core page should have multiseeds"
+            assert isinstance(data["multiseeds"], list), "Core multiseeds should be list"
+            if data["multiseeds"]:
+                assert all(isinstance(q, list) and len(q) == 6 for q in data["multiseeds"]), "Each multiseed should be list of 6"
 
         print(f"    ✓ {page_type} page structure correct")
 
@@ -166,4 +168,6 @@ def main():
     print("\n✓ All server tests passed!")
 
 if __name__ == "__main__":
+    main()if __name__ == "__main__":
+    main()if __name__ == "__main__":
     main()

@@ -3,15 +3,17 @@
 Test that CPU and core page hashseeds deterministically produce valid page IDs.
 """
 
-import requests
 import hashlib
-import sys
 import os
+import sys
 from concurrent.futures import ThreadPoolExecutor
+
+import requests
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import SERVER_PORT, CPU_PAGE_ITERATIONS, CORE_PAGE_ITERATIONS_PER_CHAR
+from config import (CORE_PAGE_ITERATIONS_PER_CHAR, CPU_PAGE_ITERATIONS,
+                    SERVER_PORT)
 
 BASE_URL = f"http://localhost:{SERVER_PORT}"
 
@@ -82,14 +84,14 @@ def test_core_hashseed():
     response = requests.get(f"{BASE_URL}/api/{core_page_id}")
     data = response.json()
 
-    assert "quadseeds" in data, "Core page should have quadseeds field"
-    assert isinstance(data["quadseeds"], list), "Core quadseeds should be a list"
+    assert "multiseeds" in data, "Core page should have multiseeds field"
+    assert isinstance(data["multiseeds"], list), "Core multiseeds should be a list"
 
-    if not data["quadseeds"]:
-        print("  ⚠ No quadseeds found")
+    if not data["multiseeds"]:
+        print("  ⚠ No multiseeds found")
         return True
 
-    hexseed = data["quadseeds"][0]
+    hexseed = data["multiseeds"][0]
     assert isinstance(hexseed, list) and len(hexseed) == 6, "Each hexseed should be list of 6"
 
     hashseeds = {str(i+1): seed for i, seed in enumerate(hexseed)}
@@ -156,8 +158,8 @@ def test_determinism():
     for i in range(3):
         response = requests.get(f"{BASE_URL}/api/{core_page_id}")
         data = response.json()
-        if data.get("quadseeds"):
-            seed_sets.append(str(data["quadseeds"][0] if data["quadseeds"] else None))
+        if data.get("multiseeds"):
+            seed_sets.append(str(data["multiseeds"][0] if data["multiseeds"] else None))
 
     if len(set(seed_sets)) == 1:
         print(f"  ✓ Core page {core_page_id} returns same hashseed dict every time")
@@ -206,4 +208,6 @@ def main():
         exit(1)
 
 if __name__ == "__main__":
+    main()if __name__ == "__main__":
+    main()if __name__ == "__main__":
     main()

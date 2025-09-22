@@ -4,12 +4,13 @@ CPU and multi-core example tests for the Web Graph Server.
 Tests hashseed solving for CPU-bound and parallel processing challenges.
 """
 
-import requests
 import hashlib
-import time
-import sys
 import os
+import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
+
+import requests
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -95,20 +96,20 @@ def test_core_page():
     response = requests.get(f"{BASE_URL}/api/{page['page_id']}")
     data = response.json()
 
-    if 'quadseeds' not in data:
-        print("  No quadseeds found")
+    if 'multiseeds' not in data:
+        print("  No multiseeds found")
         return True
 
-    if not data['quadseeds']:
-        print("  Empty quadseeds list")
+    if not data['multiseeds']:
+        print("  Empty multiseeds list")
         return True
 
-    quadseed = data['quadseeds'][0]  # Use first quad
+    multiseed = data['multiseeds'][0]  # Use first quad
 
     # Sequential approach
     start_time = time.time()
     results_seq = []
-    for i, seed in enumerate(quadseed):
+    for i, seed in enumerate(multiseed):
         pos, char = solve_core_hashseed(seed, i + 1)
         results_seq.append((pos, char))
     results_seq.sort()
@@ -119,7 +120,7 @@ def test_core_page():
     start_time = time.time()
     with ThreadPoolExecutor(max_workers=6) as executor:
         futures = []
-        for i, seed in enumerate(quadseed):
+        for i, seed in enumerate(multiseed):
             futures.append(executor.submit(solve_core_hashseed, seed, i + 1))
         results_par = [future.result() for future in futures]
     results_par.sort()
@@ -159,4 +160,4 @@ def main():
     print("\n✓ All example tests passed!")
 
 if __name__ == "__main__":
-    main()
+    main()    main()    main()

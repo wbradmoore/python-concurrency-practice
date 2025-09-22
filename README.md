@@ -98,7 +98,7 @@ Pages requiring parallel CPU work. Shows benefits of multi-core processing.
 ```python
 data = requests.get("http://localhost:5000/api/r5s6").json()
 target_chars = []
-for seed in data["quadseeds"][0]:  # Get first hexseed group (still called quadseeds for compatibility)
+for seed in data["multiseeds"][0]:  # Get first hexseed group (still called multiseeds for compatibility)
     result = seed
     for _ in range(1250000):
         result = hashlib.md5(result.encode()).hexdigest()

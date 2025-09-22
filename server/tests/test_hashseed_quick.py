@@ -3,14 +3,16 @@
 Quick test for CPU/core hashseed computation.
 """
 
-import requests
 import hashlib
-import sys
 import os
+import sys
+
+import requests
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import SERVER_PORT, CPU_PAGE_ITERATIONS, CORE_PAGE_ITERATIONS_PER_CHAR
+from config import (CORE_PAGE_ITERATIONS_PER_CHAR, CPU_PAGE_ITERATIONS,
+                    SERVER_PORT)
 
 BASE_URL = f"http://localhost:{SERVER_PORT}"
 
@@ -62,16 +64,16 @@ def test_core_seed_computation():
     response = requests.get(f"{BASE_URL}/api/{core_page_id}")
     data = response.json()
 
-    if "quadseeds" not in data or not data["quadseeds"]:
-        print(f"  Core page {core_page_id} has no quadseeds")
+    if "multiseeds" not in data or not data["multiseeds"]:
+        print(f"  Core page {core_page_id} has no multiseeds")
         return True  # Not an error, page might not have links
 
-    quadseed = data["quadseeds"][0]
+    multiseed = data["multiseeds"][0]
     print(f"  Core page {core_page_id}")
 
     # Compute the 6-character result
     target = ""
-    for i, seed in enumerate(quadseed):
+    for i, seed in enumerate(multiseed):
         result = seed
         for _ in range(CORE_PAGE_ITERATIONS_PER_CHAR):
             result = hashlib.md5(result.encode()).hexdigest()
@@ -113,4 +115,6 @@ def main():
         print("✗ Tests failed")
 
 if __name__ == "__main__":
+    main()if __name__ == "__main__":
+    main()if __name__ == "__main__":
     main()
