@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import random
-import string
 import time
 
 from config import *
@@ -239,6 +238,14 @@ def get_root_page():
         "url": "/api/"
     }
     return jsonify(root_data)
+
+@app.route('/api/cheat/')
+def cheat():
+    """Get all page links as a simple JSON dict (page_id -> [linked_page_ids])"""
+    cheat_data = {}
+    for page_id, page_data in GRAPH.items():
+        cheat_data[page_id] = page_data["links"]
+    return jsonify(cheat_data)
 
 @app.route('/api/<page_id>')
 def get_page(page_id):

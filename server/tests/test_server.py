@@ -11,8 +11,7 @@ import requests
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import (DELAY_PAGE_DELAY, FAILURE_PAGE_ERROR_RATE,
-                    REGULAR_PAGE_DELAY, SERVER_PORT)
+from config import REGULAR_PAGE_DELAY, SERVER_PORT
 
 BASE_URL = f"http://localhost:{SERVER_PORT}"
 
