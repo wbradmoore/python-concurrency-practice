@@ -23,8 +23,6 @@ PAGE_TYPES = {
 
 # Hash cacher instance
 hash_cacher = HashCacher("/app/hashcache.json")
-USED_CPU_SEEDS = set()
-USED_CORE_SEEDS = set()
 
 def compute_seed_pools():
     """Ensure we have enough seeds for CPU and core pages using HashCacher"""
@@ -32,17 +30,9 @@ def compute_seed_pools():
     hash_cacher.ensure_cpu_seeds(TOTAL_PAGES, CPU_PAGE_ITERATIONS)
     hash_cacher.ensure_core_char_coverage()
 
-def get_cpu_seeds_for_targets(target_page_ids):
-    """Get CPU seeds that hash to the target page IDs"""
-    return hash_cacher.get_cpu_seeds_for_targets(target_page_ids, USED_CPU_SEEDS)
-
-def get_core_seeds_for_targets(target_page_ids):
-    """Get core seed groups (6 seeds each) that hash to the target page IDs"""
-    return hash_cacher.get_core_seeds_for_targets(target_page_ids, USED_CORE_SEEDS)
-
 
 def assign_page_types(page_ids):
-    """Assign page types to page IDs with exact percentages"""
+    """Assign page types to page IDs with exact percentages, ensuring first page is regular"""
     # Calculate exact counts for each page type
     core_count = int(TOTAL_PAGES * CORE_PAGE_PROBABILITY)
     cpu_count = int(TOTAL_PAGES * CPU_PAGE_PROBABILITY)
@@ -55,52 +45,64 @@ def assign_page_types(page_ids):
     shuffled_ids = page_ids.copy()
     random.shuffle(shuffled_ids)
 
-    # Assign types to page IDs in order
-    pages = []
+    # Start with first page as regular
+    pages = [{
+        "page_id": shuffled_ids[0],
+        "type": "regular",
+        "url": f"/api/{shuffled_ids[0]}"
+    }]
 
-    # Assign CPU pages first
+    # Create remaining pages list
+    remaining_pages = []
+    offset = 1
+
+    # Add CPU pages
     for i in range(cpu_count):
-        pages.append({
-            "page_id": shuffled_ids[i],
+        remaining_pages.append({
+            "page_id": shuffled_ids[offset + i],
             "type": "cpu",
-            "url": f"/api/{shuffled_ids[i]}"
+            "url": f"/api/{shuffled_ids[offset + i]}"
         })
 
-    # Then core pages
-    offset = cpu_count
+    # Add core pages
+    offset += cpu_count
     for i in range(core_count):
-        pages.append({
+        remaining_pages.append({
             "page_id": shuffled_ids[offset + i],
             "type": "core",
             "url": f"/api/{shuffled_ids[offset + i]}"
         })
 
-    # Then failure pages
+    # Add failure pages
     offset += core_count
     for i in range(failure_count):
-        pages.append({
+        remaining_pages.append({
             "page_id": shuffled_ids[offset + i],
             "type": "failure",
             "url": f"/api/{shuffled_ids[offset + i]}"
         })
 
-    # Then delay pages
+    # Add delay pages
     offset += failure_count
     for i in range(delay_count):
-        pages.append({
+        remaining_pages.append({
             "page_id": shuffled_ids[offset + i],
             "type": "delay",
             "url": f"/api/{shuffled_ids[offset + i]}"
         })
 
-    # Finally regular pages
+    # Add remaining regular pages (one less since first is already regular)
     offset += delay_count
-    for i in range(regular_count):
-        pages.append({
+    for i in range(regular_count - 1):
+        remaining_pages.append({
             "page_id": shuffled_ids[offset + i],
             "type": "regular",
             "url": f"/api/{shuffled_ids[offset + i]}"
         })
+
+    # Shuffle remaining pages and add to result
+    random.shuffle(remaining_pages)
+    pages.extend(remaining_pages)
 
     return pages
 
@@ -112,9 +114,9 @@ print("Pre-computing hashseed pools...")
 compute_seed_pools()
 
 print("Collecting ALL page IDs from hashcache...")
-# ALL page IDs come from the hashcache cpu_seeds values
+# ALL page IDs come from the hashcache cpu_seeds keys
 # This ensures every page can be linked to from CPU pages
-PAGE_IDS = list(hash_cacher.cpu_seeds.values())[:TOTAL_PAGES]
+PAGE_IDS = list(hash_cacher.cpu_seeds.keys())[:TOTAL_PAGES]
 
 if len(PAGE_IDS) < TOTAL_PAGES:
     print(f"ERROR: Not enough page IDs in hashcache! Have {len(PAGE_IDS)}, need {TOTAL_PAGES}")
@@ -278,14 +280,14 @@ def serve_page(page_id):
 
     # For CPU pages, use hashseeds list instead of links
     if page_obj["type"] == "cpu":
-        seeds = get_cpu_seeds_for_targets(link_page_ids)
+        seeds = hash_cacher.get_cpu_seeds_for_targets(link_page_ids)
         page_data["hashseeds"] = seeds
         page_data["link_count"] = len(seeds)
         del page_data["links"]
 
     # For multi-core pages, use hexseeds list of lists instead of links
     elif page_obj["type"] == "core":
-        seed_groups = get_core_seeds_for_targets(link_page_ids)
+        seed_groups = hash_cacher.get_core_seeds_for_targets(link_page_ids)
         page_data["multiseeds"] = seed_groups
         page_data["link_count"] = len(seed_groups)
         del page_data["links"]
