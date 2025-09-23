@@ -44,9 +44,6 @@ SERVER_HOST = '0.0.0.0'         # Server bind address
 SERVER_PORT = 5000              # Server port
 DEBUG_MODE = True               # Flask debug mode
 
-# Graph Generation Limits
-MAX_ATTEMPTS_EDGE_GENERATION = 10000  # Prevent infinite loops during graph generation
-
 # Error Messages
 PAGE_NOT_FOUND_MESSAGE = "Page {page_id} not found"
 

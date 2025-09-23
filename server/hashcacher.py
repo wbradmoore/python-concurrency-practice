@@ -267,29 +267,14 @@ class HashCacher:
             used_seeds = set()
 
         seeds = []
-        available_targets = set(self.cpu_seeds.values())
 
         for target in target_page_ids:
-            # Every target should have available seeds since all page IDs come from hashcache
-            if target not in available_targets:
-                raise ValueError(f"No CPU seed available for target {target} - this should never happen!")
-
-            # Find an unused seed that maps to this target
-            found_seed = False
+            # Find a seed that maps to this target
             for seed, page_id in self.cpu_seeds.items():
                 if page_id == target and seed not in used_seeds:
                     seeds.append(seed)
                     used_seeds.add(seed)
-                    found_seed = True
                     break
-
-            if not found_seed:
-                # This means all seeds for this target are already used
-                # For now, reuse the first available seed (could be improved with better seed management)
-                for seed, page_id in self.cpu_seeds.items():
-                    if page_id == target:
-                        seeds.append(seed)
-                        break
         return seeds
 
     def get_core_seeds_for_targets(self, target_page_ids: list, used_seeds: set = None) -> list:
@@ -300,16 +285,11 @@ class HashCacher:
         hex_seed_lists = []
 
         for target in target_page_ids:
-            if len(target) < PAGE_ID_LENGTH:
-                target = target.ljust(PAGE_ID_LENGTH, '0')
-
             # Build a hex-seed list for this target
             hex_seeds = []
-            for char in target[:PAGE_ID_LENGTH]:
+            for char in target:
                 hex_seeds.append(random.choice(self.core_seeds[char]))
-
-            if len(hex_seeds) == PAGE_ID_LENGTH:
-                hex_seed_lists.append(hex_seeds)
+            hex_seed_lists.append(hex_seeds)
 
         return hex_seed_lists
 

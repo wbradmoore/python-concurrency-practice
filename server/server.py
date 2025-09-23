@@ -185,10 +185,8 @@ def build_graph():
     target_total_edges = TOTAL_PAGES * AVG_LINKS_PER_PAGE
     additional_edges_needed = target_total_edges - (TOTAL_PAGES - 1)
     edges_added = 0
-    attempts = 0
 
-    while edges_added < additional_edges_needed and attempts < MAX_ATTEMPTS_EDGE_GENERATION:
-        attempts += 1
+    while edges_added < additional_edges_needed:
         source_page = random.choice(PAGES)
 
         # All pages can be linked to since all page IDs come from hashcache
@@ -282,34 +280,22 @@ def serve_page(page_id):
 
     # For CPU pages, use hashseeds list instead of links
     if page_type == "cpu":
-        if link_page_ids:
-            # Get pre-computed seeds for these targets
-            seeds = get_cpu_seeds_for_targets(link_page_ids)
-            page_data["hashseeds"] = seeds
-            page_data["link_count"] = len(seeds)  # Update count to reflect actual seeds
-        else:
-            # No links, empty list
-            page_data["hashseeds"] = []
-            page_data["link_count"] = 0
-        del page_data["links"]  # Remove links field
+        seeds = get_cpu_seeds_for_targets(link_page_ids)
+        page_data["hashseeds"] = seeds
+        page_data["link_count"] = len(seeds)
+        del page_data["links"]
 
     # For multi-core pages, use hexseeds list of lists instead of links
     elif page_type == "core":
-        if link_page_ids:
-            # Get pre-computed seed groups for these targets
-            seed_groups = get_core_seeds_for_targets(link_page_ids)
-            page_data["multiseeds"] = seed_groups
-            page_data["link_count"] = len(seed_groups)  # Update count to reflect actual seed groups
-        else:
-            # No links, empty list
-            page_data["multiseeds"] = []
-            page_data["link_count"] = 0
-        del page_data["links"]  # Remove links field
+        seed_groups = get_core_seeds_for_targets(link_page_ids)
+        page_data["multiseeds"] = seed_groups
+        page_data["link_count"] = len(seed_groups)
+        del page_data["links"]
 
     # For regular/delay/failure pages, keep links as page IDs
     else:
         page_data["links"] = link_page_ids
-        page_data["link_count"] = len(link_page_ids)  # Update count to reflect actual links
+        page_data["link_count"] = len(link_page_ids)
 
     return jsonify(page_data)
 
