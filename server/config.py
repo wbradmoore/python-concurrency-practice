@@ -22,7 +22,6 @@ CORE_PAGE_PROBABILITY = 0.1     # Probability that a page is a multi-core page (
 # Timing Configuration (in seconds)
 REGULAR_PAGE_DELAY = 0.5        # Delay for regular pages (500ms)
 DELAY_PAGE_DELAY = 5.0          # Delay for delay pages (5000ms)
-ROOT_PAGE_DELAY = 0.0           # No delay for root page
 FAILURE_PAGE_DELAY = 0.5        # Delay for failure pages (500ms)
 CPU_PAGE_DELAY = 0.1            # Delay for CPU pages (100ms - minimal I/O)
 CORE_PAGE_DELAY = 0.1           # Delay for multi-core pages (100ms - minimal I/O)
@@ -35,7 +34,6 @@ CPU_PAGE_ITERATIONS = 5000000  # Number of hash iterations for CPU work (5M iter
 
 # Multi-Core Configuration
 CORE_PAGE_ITERATIONS_PER_CHAR = 1250000  # Hash iterations per character (1.25M iterations)
-CORE_PAGE_CHARS = 6             # Number of characters to compute in parallel
 CORE_SEEDS_PER_CHAR = 2         # Number of seeds to generate per hex character
 
 
