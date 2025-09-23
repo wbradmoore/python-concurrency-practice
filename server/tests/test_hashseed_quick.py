@@ -115,6 +115,4 @@ def main():
         print("✗ Tests failed")
 
 if __name__ == "__main__":
-    main()if __name__ == "__main__":
-    main()if __name__ == "__main__":
     main()

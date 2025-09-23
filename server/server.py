@@ -163,7 +163,7 @@ def build_graph():
     # Ensure the first page (entry point from /api/) always gets at least one outgoing link
     if pages_not_added:
         first_target = pages_not_added.pop(0)
-        GRAPH[PAGES[0]["page_id"]]["links"].append(first_target["url"])
+        GRAPH[PAGES[0]["page_id"]]["links"].append(first_target["page_id"])
         pages_in_tree.append(first_target)
 
     # Build tree structure: add each remaining page with one link from an existing page
@@ -175,30 +175,28 @@ def build_graph():
 
         # Add link from source to new page
         source_id = source_page["page_id"]
-        GRAPH[source_id]["links"].append(new_page["url"])
+        GRAPH[source_id]["links"].append(new_page["page_id"])
 
         # Add new page to tree
         pages_in_tree.append(new_page)
 
-    # Now we have a tree with (TOTAL_PAGES - 1) edges
+    # Now we have a tree with ~TOTAL_PAGES edges
     # Add more edges to reach target average links per page
-    target_total_edges = TOTAL_PAGES * AVG_LINKS_PER_PAGE
-    additional_edges_needed = target_total_edges - (TOTAL_PAGES - 1)
-    edges_added = 0
+    edges_needed = TOTAL_PAGES * AVG_LINKS_PER_PAGE - TOTAL_PAGES
 
-    while edges_added < additional_edges_needed:
+    while edges_needed > 0:
         source_page = random.choice(PAGES)
 
         # All pages can be linked to since all page IDs come from hashcache
         target_page = choose_target_page()
 
         source_id = source_page["page_id"]
-        target_url = target_page["url"]
+        target_id = target_page["page_id"]
 
         # Don't add self-loops or duplicate edges
-        if source_id != target_page["page_id"] and target_url not in GRAPH[source_id]["links"]:
-            GRAPH[source_id]["links"].append(target_url)
-            edges_added += 1
+        if source_id != target_id and target_id not in GRAPH[source_id]["links"]:
+            GRAPH[source_id]["links"].append(target_id)
+            edges_needed -= 1
 
     # Update link counts
     for page in PAGES:
@@ -256,37 +254,30 @@ def serve_page(page_id):
     if not page_obj:
         abort(404, description=PAGE_NOT_FOUND_MESSAGE.format(page_id=page_id))
 
-    page_type = page_obj["type"]
-
     # Apply the appropriate delay for this page type
-    delay = PAGE_TYPES[page_obj["type"]]["delay"]
-    time.sleep(delay)
+    time.sleep(PAGE_TYPES[page_obj["type"]]["delay"])
 
     # Check if this is a failure page and should fail
-    if page_type == "failure" and random.random() < FAILURE_PAGE_ERROR_RATE:
+    if page_obj["type"] == "failure" and random.random() < FAILURE_PAGE_ERROR_RATE:
         abort(500, description=f"Failure page {page_id} failed (simulated error)")
 
     page_data = GRAPH[page_id].copy()
     page_data["requested_at"] = time.time()
     page_data["url"] = f"/api/{page_id}"
-    page_data["delay_ms"] = int(delay * 1000)
+    page_data["delay_ms"] = int(PAGE_TYPES[page_obj["type"]]["delay"] * 1000)
 
-    # Convert links to just page IDs (not full URLs)
-    link_page_ids = []
-    for link in page_data["links"]:
-        # Extract target page ID from link URL
-        target_page_id = link.split('/')[-1]
-        link_page_ids.append(target_page_id)
+    # Links are already page IDs
+    link_page_ids = page_data["links"]
 
     # For CPU pages, use hashseeds list instead of links
-    if page_type == "cpu":
+    if page_obj["type"] == "cpu":
         seeds = get_cpu_seeds_for_targets(link_page_ids)
         page_data["hashseeds"] = seeds
         page_data["link_count"] = len(seeds)
         del page_data["links"]
 
     # For multi-core pages, use hexseeds list of lists instead of links
-    elif page_type == "core":
+    elif page_obj["type"] == "core":
         seed_groups = get_core_seeds_for_targets(link_page_ids)
         page_data["multiseeds"] = seed_groups
         page_data["link_count"] = len(seed_groups)

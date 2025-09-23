@@ -160,4 +160,4 @@ def main():
     print("\n✓ All example tests passed!")
 
 if __name__ == "__main__":
-    main()    main()    main()
+    main()

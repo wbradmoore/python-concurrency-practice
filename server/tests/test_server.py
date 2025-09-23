@@ -168,6 +168,4 @@ def main():
     print("\n✓ All server tests passed!")
 
 if __name__ == "__main__":
-    main()if __name__ == "__main__":
-    main()if __name__ == "__main__":
     main()
